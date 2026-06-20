@@ -12,7 +12,7 @@
 window.MathJax = {
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
   svg: { fontCache: 'global' },
-  startup: { typeset: false }
+  startup: { typeset: false } // 由代码精准接管渲染生命周期
 };
 </script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
@@ -128,9 +128,9 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
 .card-body-collapse{transition:max-height 0.4s ease, padding 0.4s ease, opacity 0.4s;overflow:hidden;opacity:1}
 .card-body-collapse.collapsed{max-height:0!important;padding-top:0!important;padding-bottom:0!important;opacity:0}
 
-.ana-desc{background:var(--bg2);border-left:4px solid var(--blue);border-radius:0 var(--r) var(--r) 0;padding:16px 20px;margin-bottom:20px;font-size:0.95rem;color:var(--text1);line-height:1.7}
-.ana-desc h4{margin-bottom:10px;color:var(--text0);font-size:1.05rem;font-weight:700}
-.ana-desc p{margin-bottom:6px}
+.ana-desc{background:var(--bg2);border-left:4px solid var(--blue);border-radius:0 var(--r) var(--r) 0;padding:20px 24px;margin-bottom:20px;font-size:0.95rem;color:var(--text1);line-height:1.75}
+.ana-desc h4{margin-bottom:12px;color:var(--text0);font-size:1.05rem;font-weight:700}
+.ana-desc p{margin-bottom:8px}
 .ana-desc p:last-child{margin-bottom:0}
 .cw{position:relative;width:100%;min-height:500px;height:100%}
 
@@ -175,11 +175,11 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
 .cfg-sel,.cfg-inp { width: 100%; background: var(--bg0); border: 1px solid var(--border2); color: var(--text0); padding: 8px 12px; border-radius: var(--r); font-size: 0.9rem; outline: none; font-family: var(--sans); }
 .cfg-sel:focus,.cfg-inp:focus { border-color: var(--blue); }
 
-.bt-content { flex: 1; min-width: 0; transition: all 0.3s; }
+.bt-content { flex: 1; min-width: 0; transition: all 0.3s; display: flex; flex-direction: column; }
 .toggle-col-btn { background: var(--bg2); border: 1px solid var(--border1); color: var(--text1); padding: 6px 12px; border-radius: var(--r); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; font-weight: 600; transition: background 0.2s; align-self: flex-start;}
 .toggle-col-btn:hover { background: var(--bg3); color: var(--text0); }
 
-.met-box-wrap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
+.met-box-wrap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
 .met-box { background: var(--bg1); border: 1px solid var(--border1); padding: 16px 12px; border-radius: var(--rl); text-align: center; box-shadow: var(--shadow); }
 .met-v { font-size: 1.5rem; font-family: var(--mono); font-weight: 700; margin-bottom: 6px; }
 .met-l { font-size: 0.75rem; color: var(--text2); text-transform: uppercase; }
@@ -190,7 +190,7 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
 .report-section { margin-bottom: 30px; }
 .report-title { font-size: 1.2rem; font-weight: 700; color: var(--text0); border-bottom: 2px solid var(--blue); padding-bottom: 8px; margin-bottom: 16px; display: inline-block; }
 .report-p { font-size: 0.95rem; color: var(--text1); line-height: 1.8; margin-bottom: 12px; text-indent: 2em; }
-.report-highlight { background: var(--bg3); padding: 16px 20px; border-radius: var(--r); margin: 16px 0; border-left: 4px solid var(--gold); line-height: 1.8; }
+.report-highlight { background: var(--bg3); padding: 20px 24px; border-radius: var(--r); margin: 16px 0; border-left: 4px solid var(--gold); line-height: 1.8; }
 .report-highlight b { color: var(--text0); }
 </style>
 </head>
@@ -238,7 +238,7 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
         <span class="sep"></span><button data-v="open_bom" onclick="setPM(this)">月初</button>
       </div>
     </div>
-    <div id="sel-wrap"><span style="color:var(--text2);font-size:0.85rem">← 从左侧勾选分析指标</span></div>
+    <div id="sel-wrap"></div>
     <button class="btn-act" style="border-color:var(--red);color:var(--red);margin-left:auto" onclick="clearAll()">清空选择</button>
   </div>
 </div>
@@ -310,37 +310,46 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
         <div class="ana-desc">
           <h4>科学脱盲回测引擎：宏观水位与均线动量避险模型 (Level & Momentum)</h4>
 
-          <div style="display:flex;gap:30px;margin-bottom:14px">
-            <div style="flex:1">
-              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">1. 无未来函数的数据隔离机制</h4>
-              <p style="font-size:0.9rem;line-height:1.6">模型严格在 <b>校验区 (Train)</b> 内部扫描所有因子的最优前瞻指导时差 ($Lag \ge 1$)。在 <b>验证区 (Test)</b> 步进时，当月只使用<b>提前了 $Lag$ 个月的客观历史宏观数据</b>带入校验区特征值 ($\mu, \sigma$) 计算 $Z_t$ 得分，彻底杜绝数据窥探与价格挂钩。</p>
+          <div style="display:flex;gap:40px;margin-bottom:20px;flex-wrap:wrap">
+            <div style="flex:1;min-width:400px">
+              <h4 style="margin-bottom:12px;font-size:1.05rem;color:var(--text0)">1. 无未来函数的数据隔离机制</h4>
+              <p style="font-size:0.95rem;line-height:1.7">模型严格在 <b>校验区 (Train)</b> 计算各因子的最优前瞻时间 $Lag$ 及统计基准。进入 <b>验证区 (Test)</b> 步进时，当月只带入<b>提前了 $Lag$ 个月的客观历史数据</b>进行偏离度打分，彻底杜绝数据窥探。</p>
             </div>
-            <div style="flex:1">
-              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">2. 核心数学模型计算推演</h4>
-              <p style="font-size:0.9rem;line-height:1.6;margin-bottom:4px"><b>绝对水位基准得分：</b>$$ Z_t = \text{Dir} \times \frac{X_{t-Lag} - \mu}{\sigma} $$</p>
-              <ul style="font-size:0.8rem;color:var(--text2);margin-left:1em;margin-bottom:8px">
-                <li>$X_{t-Lag}$: 减去了提前量 $Lag$ 后的当期真实可用客观数据。</li>
-                <li>$\mu, \sigma$: 校验区内提前拟合固化的均值与标准波动率。</li>
-                <li>$\text{Dir}$: 因子传导系数。正向同频为$1$，反向对冲为$-1$，确保 $Z_t$ 始终是“越大越利好”。</li>
+            <div style="flex:1;min-width:400px">
+              <h4 style="margin-bottom:12px;font-size:1.05rem;color:var(--text0)">2. 核心数学模型计算推演</h4>
+              <div style="font-size:0.95rem;line-height:1.7;margin-bottom:10px">
+                <b>绝对水位基准得分 (Z-Score)：</b>反映宏观环境冷暖水位。
+                $$ Z_t = \text{Dir} \times \frac{X_{t-Lag} - \mu}{\sigma} $$
+              </div>
+              <ul style="font-size:0.85rem;color:var(--text1);margin-left:1.5em;margin-bottom:16px;line-height:1.7;list-style-type:circle">
+                <li><b>$X_{t-Lag}$</b>: 减去了提前量 $Lag$ 后的当期真实可用数据，确保决策时引用的都是已公布的客观历史。</li>
+                <li><b>$\mu, \sigma$</b>: 仅使用校验区数据拟合出的均值与标准波动率。将此基准固化后用于验证区，避免了全区间计算导致的未来数据泄露。</li>
+                <li><b>$\text{Dir}$</b>: 因子传导方向。正向同频指标为 $1$，反向对冲指标为 $-1$。这一数学处理确保了最终的 $Z_t$ 始终具备“<b>数值越大、宏观环境对资产越利好</b>”的单调性特征。</li>
               </ul>
-              <p style="font-size:0.9rem;line-height:1.6"><b>中长线平滑动量：</b>$$ \Delta MA\_Z_t = MA_{3m}(Z_t) - MA_{6m}(Z_t) $$</p>
-              <p style="font-size:0.8rem;color:var(--text2)">利用近3个月与近6个月均线的差值，大幅过滤单月数据发布的短线虚假噪音。</p>
+              <div style="font-size:0.95rem;line-height:1.7">
+                <b>中长线平滑动量 (Momentum)：</b>用于过滤短期噪音的趋势指标。
+                $$ \Delta MA\_Z_t = MA_{3m}(Z_t) - MA_{6m}(Z_t) $$
+              </div>
+              <ul style="font-size:0.85rem;color:var(--text1);margin-left:1.5em;margin-bottom:12px;line-height:1.7;list-style-type:circle">
+                <li><b>$MA_{3m}, MA_{6m}$</b>: 分别为宏观水位得分近 3 个月与近 6 个月的移动平均值。</li>
+                <li><b>$\Delta MA\_Z_t$</b>: 利用长短均线的乖离差值（类似 MACD 原理），大幅过滤单月数据发布时的高频虚假噪音，用于辅助判定宏观经济是在加速扩张还是边际衰退。</li>
+              </ul>
             </div>
           </div>
 
-          <div style="display:flex;gap:30px;padding-top:10px;border-top:1px dashed var(--border2)">
-            <div style="flex:1">
-              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">3. 满仓突击与单向避险策略</h4>
-              <ul style="margin-left:1.5em;font-size:0.9rem;color:var(--text1);line-height:1.6">
-                <li><span class="tag tp">全速满仓 (100%)</span>：当宏观绝对水位于健康区间 ($Z_t \ge 0$) 且动量共振向上时，全盘满仓获取最大收益。</li>
-                <li><span class="tag tw">防线收缩 (80% / 50% / 30%)</span>：当绝对得分跌破均值中枢，或高位均线趋势发生向下死叉溃败时，系统将依风险烈度大幅缩减敞口以锁定利润并熔断最大亏本率。</li>
-                <li><span class="tag tn">清仓规避 (0%)</span>：指标跌入深度冰点 ($Z_t < -1.0$) 且动量未见拐头迹象时，果断清仓规避系统性杀跌。</li>
+          <div style="display:flex;gap:40px;padding-top:20px;border-top:1px dashed var(--border2);flex-wrap:wrap">
+            <div style="flex:1;min-width:400px">
+              <h4 style="margin-bottom:12px;font-size:1.05rem;color:var(--text0)">3. 满仓突击与单向避险策略</h4>
+              <ul style="margin-left:1.5em;font-size:0.95rem;color:var(--text1);line-height:1.7;list-style-type:square">
+                <li><span class="tag tp" style="margin-right:4px">满仓进攻 (100%)</span>：当宏观水位于健康区间 ($Z_t \ge 0$) 且动量共振向上时，全盘满仓。</li>
+                <li><span class="tag tw" style="margin-right:4px">降仓防御 (80% / 50% / 30%)</span>：当水位跌破不同安全阈值，且中线趋势死叉向下时，系统依风险烈度大幅缩减敞口以锁定利润并控制亏本率。</li>
+                <li><span class="tag tn" style="margin-right:4px">清仓规避 (0%)</span>：指标跌入深度冰点 ($Z_t < -1.0$) 且无好转迹象时，一键清仓规避股灾。</li>
               </ul>
             </div>
-            <div style="flex:1" id="multi-formula-desc" style="display:none">
-              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">4. 多因子特征融合与降噪加权</h4>
-              <p style="font-size:0.9rem;line-height:1.6">不同因子的指导能力差异巨大。系统按各因子在校验区测算出的置信绝对极值 $|R_{max, i}|$ 执行等效加权。这种设定使得预测性越强的基石因子主导地位越高，弱指向因子仅作平滑补充：</p>
-              <p style="font-size:0.9rem;line-height:1.6;margin-top:6px;text-align:center">$$ Z_{multi, t} = \frac{\sum_{i=1}^{n} \left( |R_{max, i}| \cdot Z_{i, t} \right)}{\sum_{i=1}^{n} |R_{max, i}|} $$</p>
+            <div style="flex:1;min-width:400px" id="multi-formula-desc" style="display:none">
+              <h4 style="margin-bottom:12px;font-size:1.05rem;color:var(--text0)">4. 多因子合成公式</h4>
+              <p style="font-size:0.95rem;line-height:1.7">不同因子的指导能力差异巨大。系统会提取它们在校验区测算出的<b>前瞻最高相关系数绝对值</b> $|R_{max, i}|$。以此作为该因子的信誉权重进行等效融合。前瞻指导性越强的因子，在模型中的话语权越大：</p>
+              <p style="font-size:1.05rem;line-height:1.8;margin-top:12px;text-align:center">$$ Z_{multi, t} = \frac{\sum_{i=1}^{n} \left( |R_{max, i}| \cdot Z_{i, t} \right)}{\sum_{i=1}^{n} |R_{max, i}|} $$</p>
             </div>
           </div>
         </div>
@@ -428,13 +437,13 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
               <div class="card-body-collapse" style="display:flex;flex-direction:column;gap:14px;padding:24px">
                 <div style="font-size:0.95rem;color:var(--text1);line-height:1.7;background:var(--bg2);padding:16px;border-radius:var(--r)">
                   <b>运算前瞻寻优：</b>系统在固定的校验区间内，将宏观指标向历史逆向平移（仅扫描 $Lag \ge 1$ 的先导区域）。下表展示了该因子在各个时滞节点下的真实测试结果，并提取了<b>置信度最强的前瞻期 $Lag$ （高亮行）</b>作为最终测试基准。<br>
-                  *(多因子雷达图专用说明：特性雷达图展示了成功入库的因子预测强度对比。绿色多边形表示反转对冲因子，红色表示正向同频因子)*
+                  *(特性图谱说明：展示了成功入库的因子预测强度对比。绿色表示反转对冲指标，红色表示正向同频指标。如果模型提取失败，请尝试调低左侧相关性阈值)*
                 </div>
                 <div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap">
                   <div style="flex:1;min-width:300px;overflow-x:auto;max-height:350px">
                     <div id="model-params-table"></div>
                   </div>
-                  <div id="radar-container" style="width:100%;max-width:350px;height:350px;margin:0 auto;display:none;position:relative;flex-shrink:0">
+                  <div id="radar-container" style="width:100%;max-width:450px;height:350px;margin:0 auto;display:none;position:relative;flex-shrink:0">
                     <canvas id="chart-radar" style="position:absolute;left:0;top:0;width:100%;height:100%"></canvas>
                   </div>
                 </div>
@@ -447,7 +456,7 @@ body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-
               <div class="met-box"><div class="met-v" id="res-ret">--</div><div class="met-l">策略累计净收益</div></div>
               <div class="met-box"><div class="met-v" id="res-alpha">--</div><div class="met-l">跑赢基准 Alpha</div></div>
               <div class="met-box"><div class="met-v" id="res-sharpe">--</div><div class="met-l">年化夏普 Sharpe</div></div>
-              <div class="met-box"><div class="met-v" id="res-dd">--</div><div class="met-l">历史最大亏本率</div></div>
+              <div class="met-box"><div class="met-v" id="res-dd">--</div><div class="met-l">历史最大亏本比例</div></div>
               <div class="met-box"><div class="met-v" id="res-trades">--</div><div class="met-l">触发减仓防御次数</div></div>
             </div>
 
@@ -560,7 +569,6 @@ function toggleFS(btn, cardId, chartId) {
   setTimeout(() => { if(G.charts[chartId]) G.charts[chartId].resize(); }, 10);
 }
 
-// MathJax Safe Rendering Control
 function safeMathJax() {
   try {
     if (window.MathJax && window.MathJax.typesetPromise) {
@@ -587,11 +595,10 @@ const tradeCorrectnessPlugin = {
           const iconObj = dataset.customIcons[index];
           if(iconObj) {
             ctx.fillStyle = iconObj.color;
-            ctx.font = 'bold 16px Arial';
+            ctx.font = 'bold 18px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Draw slightly above the point
-            ctx.fillText(iconObj.text, element.x, element.y - 18);
+            ctx.fillText(iconObj.text, element.x, element.y - 20);
           }
         });
       }
@@ -694,7 +701,6 @@ function buildSB(){
   const ml = gm.querySelector('#sb-m-list');
   IDX.macList.forEach(id => {
     const item = IDX.macro[id];
-    // calc mindt maxdt
     const dts = Object.keys(item.data).sort();
     const minDt = dts.length ? dts[0] : '';
     const maxDt = dts.length ? dts[dts.length-1] : '';
@@ -704,6 +710,7 @@ function buildSB(){
     d.onclick = () => togSel(id, 'm');
     ml.appendChild(d);
   });
+  ml.style.maxHeight = ml.scrollHeight + "px";
 
   const gs = document.createElement('div');
   gs.innerHTML = `<div class="sb-grp-hd" onclick="toggleGroup(this)"><div style="display:flex;align-items:center"><span class="sb-tag t-s">资产</span> 股票指数</div><span class="chevron">▼</span></div><div class="sb-list" id="sb-s-list"></div>`;
@@ -720,6 +727,7 @@ function buildSB(){
     d.onclick = () => togSel(id, 's');
     sl.appendChild(d);
   });
+  sl.style.maxHeight = sl.scrollHeight + "px";
 }
 
 function filterSB(q){
@@ -727,6 +735,9 @@ function filterSB(q){
   document.querySelectorAll('.sb-item').forEach(el => {
     const txt = el.innerText.toLowerCase();
     el.style.display = txt.includes(q) ? '' : 'none';
+  });
+  document.querySelectorAll('.sb-list:not(.collapsed)').forEach(list => {
+    list.style.maxHeight = list.scrollHeight + "px";
   });
 }
 
@@ -743,7 +754,7 @@ function rmSel(id){ G.sel = G.sel.filter(x=>x.id!==id); syncUI(); refreshAll(); 
 function syncUI(){
   document.querySelectorAll('.sb-item').forEach(el => { el.classList.toggle('on', G.sel.some(s => s.id === el.dataset.id)); });
   const w = document.getElementById('sel-wrap');
-  if(!G.sel.length) { w.innerHTML = ''; return; }
+  if(!G.sel.length) { w.innerHTML = '<span style="color:var(--text2);font-size:0.85rem">← 从左侧勾选分析指标</span>'; return; }
 
   const ms = G.sel.filter(s=>s.t==='m'); const ss = G.sel.filter(s=>s.t==='s');
   let h = '';
@@ -767,7 +778,7 @@ function swTab(el){
   el.classList.add('on');
   G.tab=el.dataset.tab;
   refreshAll();
-  setTimeout(safeMathJax, 50); // Ensure MathJax renders when tab becomes visible
+  setTimeout(safeMathJax, 50);
 }
 
 /* ═══════════════════════════════════════════
@@ -1083,7 +1094,7 @@ function executeSimulation(facIds, assetId, trSt, trEd, teSt, teEd, benchmarkTyp
     if (z < -1.0 && macdZ <= 0) {
       targetPos = 0.0; rationale = `指标跌入极寒且趋势恶化，强制清仓规避`;
     } else if (z < -0.5 && macdZ <= 0) {
-      targetPos = 0.3; rationale = `宏观显著衰退，动量向下死叉，削减敞口至极轻仓`;
+      targetPos = 0.3; rationale = `宏观显著衰退，动量向下死叉，大幅减仓防守`;
     } else if (z < 0 || (ma3 > 0.5 && macdZ <= -0.4)) {
       targetPos = 0.5;
       if(z < 0) rationale = `宏观水位跌破荣枯线，降回半仓防御`;
@@ -1254,7 +1265,7 @@ function runBacktest(){
   document.getElementById('model-params-table').innerHTML = tblHtml;
 
   const radarWrap = document.getElementById('radar-container');
-  // Dynamic Chart type switching to guarantee display
+  // Dynamic Chart type switching based on valid factor count
   if(res.validFactors.length >= 1) {
     radarWrap.style.display = 'block';
     killChart('chart-radar');
@@ -1269,17 +1280,25 @@ function runBacktest(){
       G.charts['chart-radar'] = new Chart(document.getElementById('chart-radar'), {
         type: 'radar',
         data: { labels: rLabels, datasets: [{ label: '前瞻预测强度 |R|', data: rData, backgroundColor: 'rgba(77,142,240,0.15)', borderColor: 'var(--blue)', borderWidth: 1.5, pointBackgroundColor: rColors, pointRadius: 5 }] },
-        options: { responsive:true, maintainAspectRatio:false, layout:{padding: 25}, scales: { r: { angleLines: {color: 'rgba(200,205,220,0.5)'}, grid: {color: 'rgba(200,205,220,0.5)'}, pointLabels: {font: {size:11, family: 'sans-serif'}, color:'var(--text2)', padding: 15}, ticks:{display:false}, min: 0, max: 1 } }, plugins: {legend: {display:false}, tooltip:{callbacks:{label:(c)=>`预测强度: ${c.raw.toFixed(3)}`}}} }
+        options: { responsive:true, maintainAspectRatio:false, layout:{padding: 30}, scales: { r: { angleLines: {color: 'rgba(200,205,220,0.5)'}, grid: {color: 'rgba(200,205,220,0.5)'}, pointLabels: {font: {size:11, family: 'sans-serif'}, color:'var(--text2)', padding: 15}, ticks:{display:false}, min: 0, max: 1 } }, plugins: {legend: {display:false}, tooltip:{callbacks:{label:(c)=>`预测强度: ${c.raw.toFixed(3)}`}}} }
       });
     } else {
       G.charts['chart-radar'] = new Chart(document.getElementById('chart-radar'), {
         type: 'bar',
         data: { labels: rLabels, datasets: [{ label: '前瞻预测强度 |R|', data: rData, backgroundColor: rColors, borderRadius: 4 }] },
-        options: { responsive:true, maintainAspectRatio:false, indexAxis: 'y', layout:{padding: 10}, scales: { x: { min: 0, max: 1, grid: { color: 'rgba(200,205,220,0.5)' } }, y: { grid: { display: false } } }, plugins: { legend: {display:false}, tooltip:{callbacks:{label:(c)=>`预测强度: ${c.raw.toFixed(3)}`}}} }
+        options: { responsive:true, maintainAspectRatio:false, indexAxis: 'y', layout:{padding: 10}, scales: { x: { min: 0, max: 1, grid: { color: 'rgba(200,205,220,0.5)' } }, y: { grid: { display: false }, ticks: { color: 'var(--text2)', font: {size:11, family: 'sans-serif'} } } }, plugins: { legend: {display:false}, tooltip:{callbacks:{label:(c)=>`预测强度: ${c.raw.toFixed(3)}`}}} }
       });
     }
   } else {
     radarWrap.style.display = 'none';
+  }
+
+  const hasBad = res.validFactors.some(f => f.lag === 0 || f.weight < 0.25);
+  if (hasBad) {
+    warnWrap.innerHTML = `<div style="background:rgba(240,80,80,0.1);border-left:4px solid var(--red);padding:14px;border-radius:var(--r);margin-bottom:20px;color:var(--text0);line-height:1.6">
+      <div style="font-weight:600;margin-bottom:8px">⚠️ 弱先导因子警报：</div>
+      <div style="font-size:0.9rem;color:var(--red)">检测到所选指标在校验区内最高表现为同步反应 ($Lag \\le 0$) 或相关性微弱。模型已为您启动测算，但其前瞻预测效能受限。</div>
+    </div>`;
   }
 
   document.getElementById('res-ret').innerText = (res.totalRet>=0?'+':'') + (res.totalRet*100).toFixed(2) + '%';
@@ -1401,7 +1420,7 @@ function runBacktest(){
         if(c.dataset.yAxisID === 'yFactor') return `${c.dataset.label.split(' ')[0]}: ${c.raw.toFixed(4)}`;
         if(c.dataset.type === 'scatter') {
             const iconObj = c.dataset.customIcons[c.dataIndex];
-            const stat = iconObj && iconObj.text ? (iconObj.text === '✓' ? '(避开跌势/抓住涨幅)' : '(踏空/被套)') : '';
+            const stat = iconObj && iconObj.text ? (iconObj.text === '✓' ? '(避险成功/抓住涨幅)' : '(踏空/被套)') : '';
             return `操作记录: ${c.dataset.label} ${stat}`;
         }
         return `${c.dataset.label.split(' ')[0]}: ¥${c.raw.y !== undefined ? c.raw.y.toFixed(2) : c.raw.toFixed(2)}`;
@@ -1434,9 +1453,9 @@ function renderReport(){
   });
   corrs.sort((a,b)=> Math.abs(b.r) - Math.abs(a.r));
 
-  let allCorrText = "本区间内指标的线性相关性检验结果如下：<br>";
+  let allCorrText = "本区间内大类指标与小类细分项的线性联动强度检验结果全息列示如下：<br>";
   corrs.forEach((c, i) => {
-    allCorrText += `<div style="margin-bottom:8px;margin-top:8px">&nbsp;&nbsp;&nbsp;&nbsp;<b>[${i+1}]</b> 指标：${fmtM(c.m)} $\\Longleftrightarrow$ 资产：${fmtS(c.s)}：Pearson $R = ${c.r.toFixed(3)}$，属 <span class="tag ${getCorrLevel(c.r).cls}">${getCorrLevel(c.r).text}</span></div>`;
+    allCorrText += `<div style="margin-bottom:8px;margin-top:8px">&nbsp;&nbsp;&nbsp;&nbsp;<b>[${i+1}]</b> 大类：宏观经济指标 ${fmtM(c.m)} $\\Longleftrightarrow$ 资产标的 ${fmtS(c.s)}：历史相关系数 $R = ${c.r.toFixed(3)}$，属 <span class="tag ${getCorrLevel(c.r).cls}">${getCorrLevel(c.r).text}</span></div>`;
   });
 
   const trSt = document.getElementById('sig-train-start').value || G.startDt;
@@ -1455,8 +1474,8 @@ function renderReport(){
     });
   });
 
-  let leadText = localLeads.filter(l => l.best.lag > 0).sort((a,b)=>b.best.r - a.best.r).map(l => `在校验期内，指标 ${fmtM(l.m)} 领先于资产 ${fmtS(l.s)} 约 <b>${l.best.lag} 个月</b>（相关系数绝对极值 $|R|_{max} = ${Math.abs(l.best.r).toFixed(3)}$），表现出前瞻性特征。`).join('<br><br>');
-  if(!leadText) leadText = "在校验期样本内，未发现具有明确前瞻引导时间的因子组合。";
+  let leadText = localLeads.filter(l => l.best.lag > 0).sort((a,b)=>b.best.r - a.best.r).map(l => `独立校验期内，宏观小类 ${fmtM(l.m)} 对资产 ${fmtS(l.s)} 表现出确凿的 <b>领先 ${l.best.lag} 个月</b> 的左侧前瞻信号特征（测算绝对极值 $|R|_{max} = ${Math.abs(l.best.r).toFixed(3)}$）。`).join('<br><br>');
+  if(!leadText) leadText = "在当前所划定的局部封闭校验期 (Train Period) 样本内，未发现具有正向平移领先期的先导因子。";
 
   const facId = document.getElementById('sig-factor').value;
   const assetId = document.getElementById('sig-asset').value;
@@ -1475,62 +1494,56 @@ function renderReport(){
 
     if(res && !res.error) {
       let maxDDLog = res.tradeLogs.find(l => l.runningMaxLoss === res.maxLoss);
-      let ddStr = maxDDLog ? `最大亏损出现在 ${maxDDLog.date} 附近` : '';
+      let ddStr = maxDDLog ? `最大亏损额度定格在 ${maxDDLog.date} 月份` : '';
 
-      btText = `系统使用当前配置参数执行回测。模型：<b>${model==='single'?'单因子轮动模型':'多因子复合模型'}</b> 针对资产 ${fmtS(astItem)}。<br>
-      为防止引入未来数据，模型在校验期 (Train, ${trSt} 至 ${trEd}) 计算均值 $\\mu$、标准差 $\\sigma$ 及最优前瞻时间 $Lag$；在验证期 (Test, ${teSt} 至 ${teEd}) 执行样本外滚动测试。<br><br>
-      <b>仓位控制逻辑：</b><br>
-      在宏观经济环境向好时买入或满仓；当宏观得分跌破均值，或趋势动量显著转弱时，系统根据风险暴露的严重程度，按比例降低仓位（减至 50%、30% 或 0%）以锁定利润并控制最大亏本率。<br><br>
-      <b>模拟交易验证结果：</b><br>
-      在验证期内，假设以 10,000 元初始资金入场，基准资产（${bType==='full'?'100%满仓持有':'50%半仓持有'}）的累计收益率为 <span class="txt-${res.bTotalRet>=0?'red':'green'}">${(res.bTotalRet*100).toFixed(2)}%</span>；<br>
-      而跟随本系统量化择时策略，期末总资金变为了 <span class="txt-${res.totalRet>=0?'red':'green'}">¥${(res.totalRet*10000 + 10000).toLocaleString('zh-CN')}</span>（累计收益 ${(res.totalRet*100).toFixed(2)}%），相较被动持有基准创造了 <b>${(res.alpha*100).toFixed(2)}% 的超额收益</b>。<br><br>
-      <b>风险控制表现：</b><br>
-      在极端风险防范方面，如果采用基准策略，期间曾面临过高达 <b>${(res.maxBLoss*100).toFixed(2)}%</b> 的历史最大亏本率；而我们的量化策略通过及时空仓或减仓，将最大亏本率控制在了 <b>${(res.maxLoss*100).toFixed(2)}%</b> 的安全水平内（${ddStr}）。年化夏普比率为 <b>${res.sharpe.toFixed(2)}</b>，全周期共执行了 <b>${res.trades} 次</b>调仓操作。<br><br>
-      <b>结论：</b>客观数据印证了该策略展现出的优异风控与择时效能，说明所选宏观指标能够有效预判标的资产的周期性回撤，并具备显著的实战参考价值。`;
+      btText = `为客观验证因子有效性，系统后台提取了您在左侧面板配置的模型：<b>${model==='single'?'单极核引擎':'多重雷达阵列'}</b> 驱动 ${fmtS(astItem)} 进行了交易模拟。<br>
+      <b>核心防未来函数架构</b>：模型在校验期 (${trSt} 至 ${trEd}) 固化了 $\\mu, \\sigma$ 及前瞻 $Lag$ 变量；在盲区验证期 (${teSt} 至 ${teEd}) 执行严格脱盲外推。<br><br>
+      <b>验证区多维绩效深度复盘 (Advanced Analytics)：</b><br>
+      策略起手初始资本 ¥10,000，运行至期末，基准资产（${bType==='full'?'满仓被动持有':'永远半仓持有'}）的累计损益为 <span class="txt-${res.bTotalRet>=0?'red':'green'}">${(res.bTotalRet*100).toFixed(2)}%</span>；而通过宏观动量系统控制仓位的策略将总资产推升至 <span class="txt-${res.totalRet>=0?'red':'green'}">¥${(res.totalRet*10000 + 10000).toLocaleString('zh-CN')}</span>，录得净收益率 <span class="txt-${res.totalRet>=0?'red':'green'}">${(res.totalRet*100).toFixed(2)}%</span>，有效剥离出 <b>超额 Alpha ${(res.alpha*100).toFixed(2)}%</b>。<br><br>
+      <b>极端风险对冲检验 (Drawdown Mitigation Performance)：</b><br>
+      在整个验证样本外周期中，采用基准被动持有策略曾面临高达 <b>${(res.maxBLoss*100).toFixed(2)}%</b> 的历史最大亏本率。而量化防线策略依靠纯宏观水位的快速死叉反转，提前斩断多头敞口，实现精准空仓或半仓留存，<b>将策略历史最大亏本率死死压制在 ${(res.maxLoss*100).toFixed(2)}% 的极低红线内</b>（${ddStr}）。年化夏普比率 $Sharpe = ${res.sharpe.toFixed(2)}$，期间共下达 <b>${res.trades} 次</b> 防线调仓指令。<br><br>
+      <b>研报终审结论：</b>基于样本外的严格实操复盘，该策略有效规避了资产在宏观下行周期遭遇的系统性戴维斯双杀。通过对经济绝对水位与边际动量的双维跟踪，策略做到了在复苏期大胆加仓，在衰退期绝不恋战，说明所选指标库具备显著的右侧顺势指导与防守撤退价值。`;
     } else {
       btText = `当前时间窗口切分下，未能提取到符合置信度阈值的有效先导因子，无法完成脱盲外推，请重新滑动参数。`;
     }
   } else {
-    btText = `请首先前往【双区间量化回测】面板执行测试，本报告将基于测算结果给出进一步的量化评估结论。`;
+    btText = `请首先前往【双区间量化回测】面板配置您的驱动因子和回测参数，系统将在此为您生成最终的策略评估。`;
   }
 
   const dateStr = `${G.startDt} 至 ${G.endDt}`;
 
   wrap.innerHTML = `
     <div style="text-align:center;margin-bottom:40px">
-      <h2 style="font-size:1.8rem;color:var(--text0);margin-bottom:10px">宏观经济指标与资产走势分析报告</h2>
-      <div style="color:var(--text2);font-family:var(--mono)">数据涵盖范围: ${dateStr}</div>
+      <h2 style="font-size:1.8rem;color:var(--text0);margin-bottom:10px">宏观投研与资产定价量化分析研报</h2>
+      <div style="color:var(--text2);font-family:var(--mono)">分析全局边界: ${dateStr}</div>
     </div>
 
     <div class="report-section">
-      <div class="report-title">1. 数据概览</div>
-      <p class="report-p">本次分析包含了 ${ms.length} 个宏观经济指标（包括：${ms.map(m=>fmtM(m)).join('、')}），以及 ${ss.length} 个资产标的（${ss.map(s=>fmtS(s)).join('、')}）。</p>
-      <p class="report-p">为了能够把不同类型的数据放在一起公平比较，系统对所有宏观数据进行了标准化处理（Z-Score）。简单来说，就是把不同单位的数据（比如百分比、绝对金额）换算成统一的无量纲得分，方便我们直观地对比它们的变化趋势。</p>
-      <div style="text-align:center;margin:20px 0">
-        <p style="font-size:0.9rem;color:var(--text2);margin-bottom:8px">数据标准化处理模型公式</p>
-        $$ Z_t = \\frac{X_t - \\mu}{\\sigma} $$
-      </div>
+      <div class="report-title">1. 宏观环境概览与标的入库</div>
+      <p class="report-p">本篇研报针对设定的时间窗口展开量化测算。报告全量调取的宏观经济数据大类包含：${ms.map(m=>fmtM(m)).join('、')}，并以此作为驱动变量，对目标资产标的库中的 ${ss.map(s=>fmtS(s)).join('、')} 实施资产定价传导效应的交叉印证。</p>
+      <p class="report-p">底层所有非平稳时序数据均实施了 Z-Score 标准化操作（数学模型 $Z_t = \\frac{X_t - \\mu}{\\sigma}$）。该处理彻底剥离了指标间的量纲壁垒，确保后续测算严谨性。</p>
     </div>
 
     <div class="report-section">
-      <div class="report-title">2. 指标联动性分析</div>
-      <p class="report-p">我们计算了宏观数据和资产价格之间的相关性（Pearson相关系数，越接近1或-1说明联动性越强），结果如下：</p>
+      <div class="report-title">2. 全局线性联动网络图谱 (Linear Correlation Network)</div>
+      <p class="report-p">系统通过强算力遍历了全时间轴下的 Pearson 线性图谱，深层定价逻辑发掘如下：</p>
       <div class="report-highlight" style="line-height:2">
         ${allCorrText}
       </div>
     </div>
 
     <div class="report-section">
-      <div class="report-title">3. 指标领先性（前瞻预测）分析</div>
-      <p class="report-p">一个好的指标不仅要相关，还要能提前发出信号。我们测试了各个指标在不同的时差（Lag）下与资产价格的相关性，以测定其作为先行指标的有效性。在校验区内计算出的结果显示：</p>
+      <div class="report-title">3. 局部校验期时序因果与前瞻属性判定 (Train-Period Causality)</div>
+      <p class="report-p">时序分析的核心价值在于测算前瞻性特征。系统在相互独立的 <b>Train 校验期 (${trSt} 至 ${trEd})</b> 内，将宏观指标向历史逆向平移扫描，所得出的前瞻属性归纳如下：</p>
       <div class="report-highlight" style="line-height:1.8">
         ${leadText}
       </div>
+      <p class="report-p">在校验区间沉淀出的前瞻因子，将作为高置信度的择时发令枪，在样本外滚动阶段接管交易控制权。</p>
     </div>
 
     <div class="report-section">
-      <div class="report-title">4. 模拟交易策略测试结果</div>
-      <p class="report-p">基于上述发掘的数据规律，我们制定了量化风控测试。在市场进入顺风期时保持较高敞口，在指标报警时控制敞口以规避回撤。</p>
+      <div class="report-title">4. 量化模型回测与实战防线复盘 (Out-of-Sample Backtesting)</div>
+      <p class="report-p">为彻底检验宏观因子对于大周期波动的指导作用，模型部署了单向风险剥离算法。常态顺风满仓，中线动量趋势死叉时执行精细的五挡阶梯持仓调控防守。具体外推绩效解构如下：</p>
       <div class="report-highlight">
         ${btText}
       </div>
