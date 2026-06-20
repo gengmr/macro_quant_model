@@ -1,0 +1,33 @@
+# =========================
+# 操作系统自动生成的文件
+# =========================
+
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.cab
+*.lnk
+desktop.ini
+$RECYCLE.BIN/
+
+# =========================
+# 项目特定文件/文件夹
+# =========================
+
+# 忽略根目录下的 data 文件夹及其所有内容
+/data/

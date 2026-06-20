@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>宏观量化投研终端</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="quant_data.js"></script>
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+  svg: { fontCache: 'global' },
+  startup: { typeset: false }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root {
+  --bg0:#f5f7fa; --bg1:#ffffff; --bg2:#f0f3f8; --bg3:#e4e9f2; --bg4:#d1d9e6;
+  --border0:#eef0f5; --border1:#e2e6f0; --border2:#cdd5e4; --border3:#aab5cb;
+  --text0:#1a202c; --text1:#4a5568; --text2:#718096; --text3:#a0aec0;
+  --chart-grid: rgba(200,205,220,0.5); --chart-tick: #718096;
+  --shadow:0 4px 16px rgba(0,0,0,.06); --shadow-lg:0 12px 48px rgba(0,0,0,.15);
+
+  --gold:#d4a843; --gold2:#f0c864; --gold-dim:#7a5e1a;
+  --blue:#4d8ef0; --blue2:#7ab0ff; --blue-dim:#e6f0ff;
+  --teal:#26c4ad; --teal2:#4de0ca;
+  --red:#f05050; --red2:#ff8080;
+  --green:#2ecc71; --green2:#5de89a;
+  --amber:#f0a030; --amber2:#ffc060;
+
+  --mono:'Courier New',Courier,monospace;
+  --sans:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  --sw:280px; --th:90px; --r:8px; --rl:12px;
+}
+
+[data-theme="dark"] {
+  --bg0:#050810; --bg1:#08101e; --bg2:#0c1628; --bg3:#111e38; --bg4:#172448;
+  --border0:#101828; --border1:#192540; --border2:#243560; --border3:#324878;
+  --text0:#dde8f8; --text1:#8fafc8; --text2:#4a6580; --text3:#263345;
+  --chart-grid: rgba(25,37,64,0.8); --chart-tick: #4a6580;
+  --blue-dim:#1e3a7a;
+  --shadow:0 8px 32px rgba(0,0,0,.5); --shadow-lg:0 24px 64px rgba(0,0,0,.8);
+}
+
+html{font-size:13px}
+body{height:100vh;overflow:hidden;background:var(--bg0);color:var(--text0);font-family:var(--sans);font-size:1rem;transition:background 0.3s, color 0.3s}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border3)}
+
+/* TOPBAR */
+#topbar{position:fixed;top:0;left:0;right:0;background:var(--bg1);border-bottom:1px solid var(--border1);display:flex;flex-direction:column;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
+.tb-row{display:flex;align-items:center;height:45px;padding:0 16px;gap:16px;border-bottom:1px solid var(--border0)}
+.tb-row:last-child{border-bottom:none}
+#topbar-logo{display:flex;align-items:center;gap:10px;width:var(--sw);flex-shrink:0;border-right:1px solid var(--border1);height:100%;transition:width 0.3s}
+#topbar-logo.collapsed{width:60px;overflow:hidden}
+#topbar-logo svg{width:22px;height:22px;flex-shrink:0}
+.logo-text{font-size:1.1rem;font-weight:700;letter-spacing:.05em;white-space:nowrap}
+
+.ctrl-grp{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ctrl-lbl{font-size:0.85rem;color:var(--text2);font-weight:600;white-space:nowrap}
+.seg{display:flex;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;background:var(--bg0)}
+.seg button{background:transparent;border:none;color:var(--text1);padding:4px 12px;font-size:0.85rem;cursor:pointer;font-weight:500;transition:all .15s}
+.seg button.on{background:var(--blue-dim);color:var(--blue);font-weight:600}
+.seg .sep{width:1px;background:var(--border2)}
+.date-inp{background:var(--bg0);border:1px solid var(--border2);color:var(--text0);padding:4px 8px;border-radius:var(--r);font-family:var(--mono);font-size:0.85rem;outline:none}
+.date-inp:focus{border-color:var(--blue)}
+.btn-act{background:var(--bg3);border:1px solid var(--border2);color:var(--text1);padding:4px 10px;border-radius:var(--r);font-size:0.85rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-act:hover{background:var(--blue-dim);color:var(--blue);border-color:var(--blue)}
+
+#sel-wrap{flex:1;display:flex;align-items:center;gap:12px;overflow-x:auto;padding-right:10px}
+.pill-grp{display:flex;align-items:center;gap:6px}
+.pill-grp-lbl{font-size:0.75rem;color:var(--text2);text-transform:uppercase;background:var(--bg2);padding:2px 6px;border-radius:4px}
+.pill{display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:0.85rem;white-space:nowrap;border:1px solid;background:var(--bg0)}
+.pill-x{cursor:pointer;opacity:.6;margin-left:2px}
+.pill-x:hover{opacity:1;color:var(--red)}
+
+.icon-btn{background:transparent;border:1px solid var(--border2);color:var(--text1);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;transition:all 0.2s;flex-shrink:0}
+.icon-btn:hover{background:var(--bg3);color:var(--text0)}
+
+/* SIDEBAR */
+#layout{display:flex;height:100vh;padding-top:var(--th)}
+#sidebar{width:var(--sw);flex-shrink:0;background:var(--bg1);border-right:1px solid var(--border1);display:flex;flex-direction:column;transition:width 0.3s, opacity 0.3s;overflow-x:hidden}
+#sidebar.collapsed{width:0;opacity:0;border:none}
+.sb-search{width:100%;background:var(--bg0);border:1px solid var(--border2);border-radius:var(--r);color:var(--text0);font-size:0.9rem;padding:6px 10px;outline:none}
+.sb-grp-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg1);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border0);font-weight:600;cursor:pointer;user-select:none}
+.sb-grp-hd:hover{background:var(--bg2)}
+.sb-tag{font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:6px}
+.t-m{background:rgba(77,142,240,.1);color:var(--blue);border:1px solid rgba(77,142,240,.3)}
+.t-s{background:rgba(212,168,67,.1);color:var(--gold);border:1px solid rgba(212,168,67,.3)}
+.sb-list{transition:max-height 0.3s ease;overflow-x:hidden;overflow-y:auto}
+.sb-list.collapsed{max-height:0!important}
+.sb-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-left:2px solid transparent;white-space:nowrap}
+.sb-item:hover{background:var(--bg2)}
+.sb-item.on{background:var(--bg3);border-left-color:var(--blue)}
+.sb-ck{width:16px;height:16px;border:1px solid var(--border2);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-item.on .sb-ck{background:var(--blue);border-color:var(--blue)}
+.sb-ck-m{display:none;color:#fff;font-size:10px}
+.sb-item.on .sb-ck-m{display:block}
+.sb-iname{font-size:0.9rem;color:var(--text1);flex:1;overflow:hidden;text-overflow:ellipsis}
+.sb-item.on .sb-iname{color:var(--text0);font-weight:600}
+.chevron{transition:transform 0.3s;font-size:0.8rem;color:var(--text2)}
+.collapsed .chevron{transform:rotate(-90deg)}
+
+/* MAIN & TABS */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg0);position:relative}
+#tabs{display:flex;border-bottom:1px solid var(--border1);background:var(--bg1);padding:0 10px;flex-shrink:0}
+.tab{padding:0 20px;height:44px;display:flex;align-items:center;font-size:0.95rem;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;font-weight:500;transition:all .2s}
+.tab:hover{color:var(--text0);background:var(--bg2)}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+
+#panels{flex:1;overflow-y:auto;padding:20px;position:relative}
+.panel{display:none}
+.panel.on{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARDS & UTILS */
+.card{background:var(--bg1);border:1px solid var(--border1);border-radius:var(--rl);margin-bottom:24px;box-shadow:var(--shadow);transition:all 0.3s;display:flex;flex-direction:column}
+.card-hd{padding:14px 20px;border-bottom:1px solid var(--border0);display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border-radius:var(--rl) var(--rl) 0 0;flex-shrink:0;cursor:default}
+.card-t{font-size:1.05rem;font-weight:600;color:var(--text0);display:flex;align-items:center;gap:8px}
+.card-body{padding:20px;position:relative;flex:1}
+.card-body-collapse{transition:max-height 0.4s ease, padding 0.4s ease, opacity 0.4s;overflow:hidden;opacity:1}
+.card-body-collapse.collapsed{max-height:0!important;padding-top:0!important;padding-bottom:0!important;opacity:0}
+
+.ana-desc{background:var(--bg2);border-left:4px solid var(--blue);border-radius:0 var(--r) var(--r) 0;padding:16px 20px;margin-bottom:20px;font-size:0.95rem;color:var(--text1);line-height:1.7}
+.ana-desc h4{margin-bottom:10px;color:var(--text0);font-size:1.05rem;font-weight:700}
+.ana-desc p{margin-bottom:6px}
+.ana-desc p:last-child{margin-bottom:0}
+.cw{position:relative;width:100%;min-height:500px;height:100%}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--border1);border-radius:var(--r)}
+.dtbl{width:100%;border-collapse:collapse;font-size:0.85rem;text-align:left}
+.dtbl th{padding:12px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border1);white-space:nowrap;font-weight:600;position:sticky;top:0;z-index:2}
+.dtbl td{padding:10px 14px;border-bottom:1px solid var(--border0);color:var(--text1);vertical-align:middle}
+.dtbl tr:hover td{background:var(--bg3)}
+
+.tag{display:inline-block;padding:3px 8px;border-radius:4px;font-size:0.8rem;font-weight:600}
+.tp{background:rgba(46,204,113,.15);color:var(--green)}
+.tn{background:rgba(240,80,80,.15);color:var(--red)}
+.tw{background:rgba(240,160,48,.15);color:var(--amber)}
+.tu{background:rgba(113,128,150,.15);color:var(--text2)}
+
+/* CUSTOM SLIDER */
+.slider-custom {
+  -webkit-appearance: none; width: 100%; height: 6px; background: var(--bg3);
+  border-radius: 3px; outline: none; transition: opacity .2s;
+}
+.slider-custom::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--blue); cursor: pointer;
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* FULLSCREEN MODIFIER */
+.fullscreen-card {
+  position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+  width: 100vw !important; height: 100vh !important;
+  z-index: 99999 !important; margin: 0 !important; border-radius: 0 !important; background: var(--bg1) !important;
+}
+.fullscreen-card .cw { height: 100% !important; min-height: 600px; }
+
+/* BACKTEST LAYOUT - 横向缩进模式 */
+.backtest-layout { display: flex; gap: 20px; align-items: flex-start; }
+.cfg-wrapper { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.3s; width: 340px; flex-shrink: 0; position: relative; }
+.cfg-wrapper.collapsed { width: 0px; opacity: 0; overflow: hidden; padding: 0; margin-right: -20px; }
+.cfg-panel { background: var(--bg2); padding: 20px; border-radius: var(--rl); border: 1px solid var(--border1); width: 340px; }
+.cfg-row { margin-bottom: 16px; }
+.cfg-row label { display: block; font-size: 0.85rem; color: var(--text2); margin-bottom: 6px; font-weight: 600; }
+.cfg-sel,.cfg-inp { width: 100%; background: var(--bg0); border: 1px solid var(--border2); color: var(--text0); padding: 8px 12px; border-radius: var(--r); font-size: 0.9rem; outline: none; font-family: var(--sans); }
+.cfg-sel:focus,.cfg-inp:focus { border-color: var(--blue); }
+
+.bt-content { flex: 1; min-width: 0; transition: all 0.3s; }
+.toggle-col-btn { background: var(--bg2); border: 1px solid var(--border1); color: var(--text1); padding: 6px 12px; border-radius: var(--r); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; font-weight: 600; transition: background 0.2s; align-self: flex-start;}
+.toggle-col-btn:hover { background: var(--bg3); color: var(--text0); }
+
+.met-box-wrap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
+.met-box { background: var(--bg1); border: 1px solid var(--border1); padding: 16px 12px; border-radius: var(--rl); text-align: center; box-shadow: var(--shadow); }
+.met-v { font-size: 1.5rem; font-family: var(--mono); font-weight: 700; margin-bottom: 6px; }
+.met-l { font-size: 0.75rem; color: var(--text2); text-transform: uppercase; }
+.txt-green { color: var(--green)!important; font-weight: 600; }
+.txt-red { color: var(--red)!important; font-weight: 600; }
+
+/* REPORT STYLES */
+.report-section { margin-bottom: 30px; }
+.report-title { font-size: 1.2rem; font-weight: 700; color: var(--text0); border-bottom: 2px solid var(--blue); padding-bottom: 8px; margin-bottom: 16px; display: inline-block; }
+.report-p { font-size: 0.95rem; color: var(--text1); line-height: 1.8; margin-bottom: 12px; text-indent: 2em; }
+.report-highlight { background: var(--bg3); padding: 16px 20px; border-radius: var(--r); margin: 16px 0; border-left: 4px solid var(--gold); line-height: 1.8; }
+.report-highlight b { color: var(--text0); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="tb-row">
+    <div id="topbar-logo">
+      <svg viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="6" fill="#0c1628"/>
+        <polyline points="4,20 10,12 16,16 24,6" stroke="#4d8ef0" stroke-width="2.5" stroke-linejoin="round" fill="none"/>
+        <circle cx="24" cy="6" r="3" fill="#d4a843"/>
+      </svg>
+      <div class="logo-text">宏观量化</div>
+    </div>
+    <button class="icon-btn" onclick="toggleSidebar()" title="折叠/展开侧边栏" style="margin-right:10px">☰</button>
+
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">全局时间区间</span>
+      <input type="month" id="global-start" class="date-inp" onchange="refreshAll()">
+      <span style="color:var(--text2)">-</span>
+      <input type="month" id="global-end" class="date-inp" onchange="refreshAll()">
+      <button class="btn-act" onclick="setCommonTime()">取公共时间</button>
+    </div>
+
+    <div class="ctrl-grp" style="margin-left:10px">
+      <span class="ctrl-lbl">全局宏观时差 (Lag)</span>
+      <input type="range" min="-12" max="12" value="0" id="lag-rng" style="width:80px;accent-color:var(--blue)" oninput="setLag(this.value)">
+      <span id="lag-d" style="font-family:var(--mono);color:var(--blue);font-weight:600;min-width:30px">0M</span>
+    </div>
+
+    <div style="margin-left:auto;display:flex;gap:12px;border-left:1px solid var(--border1);padding-left:16px">
+      <button class="icon-btn" onclick="adjFont(-1)" title="缩小字号">A-</button>
+      <button class="icon-btn" onclick="adjFont(1)" title="放大字号">A+</button>
+      <button class="icon-btn" onclick="toggleTheme()" title="切换主题">🌗</button>
+    </div>
+  </div>
+
+  <div class="tb-row">
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">价格口径</span>
+      <div class="seg" id="seg-pm">
+        <button class="on" data-v="close_eom" onclick="setPM(this)">月末</button>
+        <span class="sep"></span><button data-v="close_avg" onclick="setPM(this)">月均</button>
+        <span class="sep"></span><button data-v="open_bom" onclick="setPM(this)">月初</button>
+      </div>
+    </div>
+    <div id="sel-wrap"><span style="color:var(--text2);font-size:0.85rem">← 从左侧勾选分析指标</span></div>
+    <button class="btn-act" style="border-color:var(--red);color:var(--red);margin-left:auto" onclick="clearAll()">清空选择</button>
+  </div>
+</div>
+
+<div id="layout">
+  <div id="sidebar">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border1)">
+      <input class="sb-search" id="sb-q" placeholder="搜索指标名称 / 代码..." oninput="filterSB(this.value)">
+    </div>
+    <div id="sb-scroll" style="flex:1;overflow-x:hidden;overflow-y:auto"></div>
+  </div>
+
+  <div id="main">
+    <div id="tabs">
+      <div class="tab on" data-tab="dashboard" onclick="swTab(this)">综合仪表盘</div>
+      <div class="tab" data-tab="rolling" onclick="swTab(this)">滚动相关分析</div>
+      <div class="tab" data-tab="leadlag" onclick="swTab(this)">领先滞后分析</div>
+      <div class="tab" data-tab="signal" onclick="swTab(this)">双区间量化回测</div>
+      <div class="tab" data-tab="report" onclick="swTab(this)">综合分析研报</div>
+    </div>
+
+    <div id="panels">
+      <div id="empty-hint" style="text-align:center;padding:100px 0;color:var(--text2)">
+        <div style="font-size:4rem;opacity:0.2;margin-bottom:20px">⊞</div>
+        <h2>请至少选择 2 个指标</h2>
+        <p style="margin-top:10px">推荐结合选择 宏观经济数据 与 股票资产 进行交叉分析以获得完整体验</p>
+      </div>
+
+      <div class="panel on" id="panel-dashboard">
+        <div class="ana-desc" id="desc-dashboard">
+          <h4>Z-Score 标准化与相关性检验说明</h4>
+          <p><b>标准化原理：</b>采用 Z-Score 模型 $Z_t = \frac{X_t - \mu}{\sigma}$ 将序列统一至无量纲尺度，消除均值与方差差异。悬停图表数据点即可查看原始数值与对应日期。</p>
+          <p><b>相关性评级标准（Pearson R）：</b></p>
+          <p>• <span class="tag tp">强相关</span>：$|R| \ge 0.7$<br>
+             • <span class="tag tw">中度相关</span>：$0.4 \le |R| < 0.7$<br>
+             • <span class="tag" style="background:var(--bg3);color:var(--text1)">弱相关</span>：$0.2 \le |R| < 0.4$<br>
+             • <span class="tag tu">无显著相关</span>：$|R| < 0.2$</p>
+        </div>
+        <div class="card" id="card-dash-z">
+          <div class="card-hd"><span class="card-t">Z-Score 标准化走势对比</span><button class="btn-act" onclick="toggleFS(this, 'card-dash-z', 'chart-ts-z')">⛶ 全屏放大</button></div>
+          <div class="card-body"><div class="cw"><canvas id="chart-ts-z"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-t">全区间相关性矩阵 (Pearson R)</span></div>
+          <div class="card-body"><div class="table-wrap" id="matrix-wrap"></div></div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-rolling">
+        <div class="ana-desc">
+          <h4>滚动相关系数分析 (Rolling Correlation)</h4>
+          <p>设定不同长度的滑动窗口（6/12/24个月），动态展示相关性 $R_t$ 的演变轨迹。用于观察因子与资产之间的定价关系是否存在周期性的转变。</p>
+        </div>
+        <div id="rolling-wrap"></div>
+      </div>
+
+      <div class="panel" id="panel-leadlag">
+        <div class="ana-desc">
+          <h4>时序前瞻属性判定 (Lead-Lag Causality Analysis)</h4>
+          <p>通过执行 $Lag \in [-12, +12]$ 个月的平移扫描，寻找相关系数绝对值的极值点：</p>
+          <p>• <b>先行预测 (Leading, $Lag > 0$)</b>：宏观演化先于资产价格，具备明确的量化预测价值。<br>
+             • <b>同步共振 (Coincident, $Lag = 0$)</b>：宏观与市场周期同步。<br>
+             • <b>滞后确认 (Lagging, $Lag < 0$)</b>：宏观数据发布通常晚于市场反应，适合作为右侧趋势的确认信号。</p>
+        </div>
+        <div id="leadlag-wrap"></div>
+      </div>
+
+      <div class="panel" id="panel-signal">
+        <div class="ana-desc">
+          <h4>科学脱盲回测引擎：宏观水位与均线动量避险模型 (Level & Momentum)</h4>
+
+          <div style="display:flex;gap:30px;margin-bottom:14px">
+            <div style="flex:1">
+              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">1. 无未来函数的数据隔离机制</h4>
+              <p style="font-size:0.9rem;line-height:1.6">模型严格在 <b>校验区 (Train)</b> 内部扫描所有因子的最优前瞻指导时差 ($Lag \ge 1$)。在 <b>验证区 (Test)</b> 步进时，当月只使用<b>提前了 $Lag$ 个月的客观历史宏观数据</b>带入校验区特征值 ($\mu, \sigma$) 计算 $Z_t$ 得分，彻底杜绝数据窥探与价格挂钩。</p>
+            </div>
+            <div style="flex:1">
+              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">2. 核心数学模型计算推演</h4>
+              <p style="font-size:0.9rem;line-height:1.6;margin-bottom:4px"><b>绝对水位基准得分：</b>$$ Z_t = \text{Dir} \times \frac{X_{t-Lag} - \mu}{\sigma} $$</p>
+              <ul style="font-size:0.8rem;color:var(--text2);margin-left:1em;margin-bottom:8px">
+                <li>$X_{t-Lag}$: 减去了提前量 $Lag$ 后的当期真实可用客观数据。</li>
+                <li>$\mu, \sigma$: 校验区内提前拟合固化的均值与标准波动率。</li>
+                <li>$\text{Dir}$: 因子传导系数。正向同频为$1$，反向对冲为$-1$，确保 $Z_t$ 始终是“越大越利好”。</li>
+              </ul>
+              <p style="font-size:0.9rem;line-height:1.6"><b>中长线平滑动量：</b>$$ \Delta MA\_Z_t = MA_{3m}(Z_t) - MA_{6m}(Z_t) $$</p>
+              <p style="font-size:0.8rem;color:var(--text2)">利用近3个月与近6个月均线的差值，大幅过滤单月数据发布的短线虚假噪音。</p>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:30px;padding-top:10px;border-top:1px dashed var(--border2)">
+            <div style="flex:1">
+              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">3. 满仓突击与单向避险策略</h4>
+              <ul style="margin-left:1.5em;font-size:0.9rem;color:var(--text1);line-height:1.6">
+                <li><span class="tag tp">全速满仓 (100%)</span>：当宏观绝对水位于健康区间 ($Z_t \ge 0$) 且动量共振向上时，全盘满仓获取最大收益。</li>
+                <li><span class="tag tw">防线收缩 (80% / 50% / 30%)</span>：当绝对得分跌破均值中枢，或高位均线趋势发生向下死叉溃败时，系统将依风险烈度大幅缩减敞口以锁定利润并熔断最大亏本率。</li>
+                <li><span class="tag tn">清仓规避 (0%)</span>：指标跌入深度冰点 ($Z_t < -1.0$) 且动量未见拐头迹象时，果断清仓规避系统性杀跌。</li>
+              </ul>
+            </div>
+            <div style="flex:1" id="multi-formula-desc" style="display:none">
+              <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--text0)">4. 多因子特征融合与降噪加权</h4>
+              <p style="font-size:0.9rem;line-height:1.6">不同因子的指导能力差异巨大。系统按各因子在校验区测算出的置信绝对极值 $|R_{max, i}|$ 执行等效加权。这种设定使得预测性越强的基石因子主导地位越高，弱指向因子仅作平滑补充：</p>
+              <p style="font-size:0.9rem;line-height:1.6;margin-top:6px;text-align:center">$$ Z_{multi, t} = \frac{\sum_{i=1}^{n} \left( |R_{max, i}| \cdot Z_{i, t} \right)}{\sum_{i=1}^{n} |R_{max, i}|} $$</p>
+            </div>
+          </div>
+        </div>
+
+        <button class="toggle-col-btn" id="bt-toggle-btn" onclick="toggleBtPanel()">◀ 折叠左侧配置面板</button>
+
+        <div class="backtest-layout">
+          <div class="cfg-wrapper" id="bt-cfg-wrapper">
+            <div class="cfg-panel">
+              <div class="cfg-row">
+                <label>目标交易基准资产</label>
+                <select class="cfg-sel" id="sig-asset" onchange="initBacktestDates(); refreshAll()"></select>
+              </div>
+              <div class="cfg-row">
+                <label>模型类型</label>
+                <select class="cfg-sel" id="sig-model" onchange="toggleMultiFac(); refreshAll()">
+                  <option value="single">单因子模型</option>
+                  <option value="multi">多因子模型</option>
+                </select>
+              </div>
+              <div class="cfg-row" id="single-fac-wrap">
+                <label>核心驱动宏观因子</label>
+                <select class="cfg-sel" id="sig-factor" onchange="initBacktestDates(); refreshAll()"></select>
+              </div>
+              <div class="cfg-row" id="multi-fac-wrap" style="display:none">
+                <label>多因子合成规则</label>
+                <div style="font-size:0.8rem;color:var(--text2);margin-bottom:8px;line-height:1.5;background:var(--bg3);padding:8px;border-radius:4px">系统将提取左侧勾选的所有宏观指标，严格限定仅搜索具有前瞻预测能力 ($Lag \ge 1$) 的节点，并按预测置信度 $|R|$ 执行加权整合。</div>
+              </div>
+
+              <div class="cfg-row">
+                <label>因子入池最低相关性阈值 $|R|_{min}$</label>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+                  <input type="range" class="slider-custom" id="sig-r-slider" min="20" max="100" value="40" oninput="document.getElementById('sig-r-val').innerText = (this.value/100).toFixed(2); refreshAll()">
+                  <span id="sig-r-val" style="font-family:var(--mono);font-weight:700;color:var(--blue);width:45px;text-align:right">0.40</span>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text2);margin-top:6px;line-height:1.4">前瞻先行期内相关性极值低于此阈值的因子将被直接抛弃。</div>
+              </div>
+
+              <hr style="border:0;border-top:1px dashed var(--border2);margin:16px 0">
+
+              <div class="cfg-row">
+                <label>基准对标策略选择</label>
+                <select class="cfg-sel" id="sig-benchmark" onchange="refreshAll()">
+                  <option value="full">100% 满仓被动持有</option>
+                  <option value="half">永远 50% 半仓被动持有</option>
+                </select>
+              </div>
+
+              <div class="cfg-row">
+                <label>数据集时空切割比例 (Train vs Test)</label>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+                  <input type="range" class="slider-custom" id="sig-split-slider" min="5" max="9" value="6" oninput="document.getElementById('sig-split-val').innerText = this.value + '0% : ' + (10-this.value) + '0%'; updateSplitDates()">
+                  <span id="sig-split-val" style="font-family:var(--mono);font-weight:700;color:var(--blue);width:85px;text-align:right">60% : 40%</span>
+                </div>
+              </div>
+
+              <div class="cfg-row">
+                <label>拟合校验期 (Train Period)</label>
+                <div style="display:flex;gap:8px">
+                  <input type="month" class="cfg-inp" id="sig-train-start" disabled style="opacity:0.6;background:var(--bg3)">
+                  <input type="month" class="cfg-inp" id="sig-train-end" disabled style="opacity:0.6;background:var(--bg3)">
+                </div>
+              </div>
+              <div class="cfg-row">
+                <label>滚动验证测试期 (Test Period)</label>
+                <div style="display:flex;gap:8px">
+                  <input type="month" class="cfg-inp" id="sig-test-start" disabled style="opacity:0.6;background:var(--bg3)">
+                  <input type="month" class="cfg-inp" id="sig-test-end" disabled style="opacity:0.6;background:var(--bg3)">
+                </div>
+              </div>
+
+              <div class="cfg-row" style="margin-top:24px;margin-bottom:0">
+                <button class="btn-act" style="width:100%;height:44px;background:var(--blue);color:#fff;border:none;font-weight:700;font-size:1rem;border-radius:var(--r);letter-spacing:1px;box-shadow:0 4px 10px rgba(77,142,240,0.3)" onclick="refreshAll()">▶ 运行策略回测</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bt-content" id="bt-result-wrap">
+
+            <div class="card" id="card-train-radar">
+              <div class="card-hd" style="cursor:pointer;user-select:none" onclick="toggleGroup(this)">
+                <span class="card-t">校验区因子特征溯源说明 (Train Period Features)</span>
+                <span class="chevron" style="color:var(--text2)">▼</span>
+              </div>
+              <div class="card-body-collapse" style="display:flex;flex-direction:column;gap:14px;padding:24px">
+                <div style="font-size:0.95rem;color:var(--text1);line-height:1.7;background:var(--bg2);padding:16px;border-radius:var(--r)">
+                  <b>运算前瞻寻优：</b>系统在固定的校验区间内，将宏观指标向历史逆向平移（仅扫描 $Lag \ge 1$ 的先导区域）。下表展示了该因子在各个时滞节点下的真实测试结果，并提取了<b>置信度最强的前瞻期 $Lag$ （高亮行）</b>作为最终测试基准。<br>
+                  *(多因子雷达图专用说明：特性雷达图展示了成功入库的因子预测强度对比。绿色多边形表示反转对冲因子，红色表示正向同频因子)*
+                </div>
+                <div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap">
+                  <div style="flex:1;min-width:300px;overflow-x:auto;max-height:350px">
+                    <div id="model-params-table"></div>
+                  </div>
+                  <div id="radar-container" style="width:100%;max-width:350px;height:350px;margin:0 auto;display:none;position:relative;flex-shrink:0">
+                    <canvas id="chart-radar" style="position:absolute;left:0;top:0;width:100%;height:100%"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="bt-warning-wrap"></div>
+
+            <div class="met-box-wrap">
+              <div class="met-box"><div class="met-v" id="res-ret">--</div><div class="met-l">策略累计净收益</div></div>
+              <div class="met-box"><div class="met-v" id="res-alpha">--</div><div class="met-l">跑赢基准 Alpha</div></div>
+              <div class="met-box"><div class="met-v" id="res-sharpe">--</div><div class="met-l">年化夏普 Sharpe</div></div>
+              <div class="met-box"><div class="met-v" id="res-dd">--</div><div class="met-l">历史最大亏本率</div></div>
+              <div class="met-box"><div class="met-v" id="res-trades">--</div><div class="met-l">触发减仓防御次数</div></div>
+            </div>
+
+            <div class="card" id="card-bt">
+              <div class="card-hd">
+                <span class="card-t" style="display:flex;align-items:center;gap:12px">
+                  验证期资金收益曲线与买卖点标记
+                  <label style="font-size:0.85rem;font-weight:400;display:inline-flex;align-items:center;gap:10px;cursor:pointer;color:var(--text2);margin-left:14px;background:var(--bg3);padding:4px 10px;border-radius:12px">
+                    <input type="checkbox" id="bt-show-z" onchange="refreshAll()" style="accent-color:var(--blue)"> 显示综合得分线 (Z-Score)
+                    <input type="checkbox" id="bt-show-factor" onchange="refreshAll()" style="accent-color:var(--blue)"> 显示单因子原值线
+                  </label>
+                </span>
+                <button class="btn-act" onclick="toggleFS(this, 'card-bt', 'chart-bt')">⛶ 全屏放大</button>
+              </div>
+              <div class="card-body"><div class="cw"><canvas id="chart-bt"></canvas></div></div>
+            </div>
+
+            <div class="card">
+              <div class="card-hd"><span class="card-t">策略执行与交易明细表 (按月正序回溯)</span></div>
+              <div class="card-body" style="padding:0">
+                <div id="trade-log-wrap" class="table-wrap" style="max-height:600px;overflow-y:auto;border:none"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-report">
+        <div id="report-wrap" style="background:var(--bg1);border:1px solid var(--border1);border-radius:var(--rl);padding:40px;box-shadow:var(--shadow-lg)">
+          </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   GLOBAL STATE & UTILS
+═══════════════════════════════════════════ */
+const PAL = ['#4d8ef0','#d4a843','#2ecc71','#f05050','#9b72f0','#f0a030','#26c4ad'];
+let G = { pm: 'close_eom', lag: 0, sel: [], tab: 'dashboard', charts: {}, startDt: '', endDt: '' };
+let IDX = null;
+let _fontBase = 13;
+
+function parseV(v){
+  if(typeof v==='number')return v;
+  if(typeof v==='string'){const c=v.replace(/[%,\s]/g,'');return parseFloat(c)}
+  return NaN;
+}
+function nextCol(i){return PAL[i % PAL.length]}
+function adjFont(d){
+  _fontBase = Math.max(10, Math.min(18, _fontBase + d));
+  document.documentElement.style.fontSize = _fontBase + 'px';
+}
+function toggleTheme(){
+  const html = document.documentElement;
+  const cur = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  refreshAll();
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('topbar-logo').classList.toggle('collapsed');
+}
+function toggleGroup(hd){
+  const list = hd.nextElementSibling;
+  hd.classList.toggle('collapsed');
+  list.classList.toggle('collapsed');
+  if(!list.classList.contains('collapsed')) {
+    list.style.maxHeight = list.scrollHeight + 500 + "px";
+  } else {
+    list.style.maxHeight = "0";
+  }
+}
+
+function toggleBtPanel() {
+  const panel = document.getElementById('bt-cfg-wrapper');
+  const btn = document.getElementById('bt-toggle-btn');
+  if(panel.classList.contains('collapsed')) {
+    panel.classList.remove('collapsed');
+    btn.innerText = '◀ 折叠左侧配置面板';
+  } else {
+    panel.classList.add('collapsed');
+    btn.innerText = '▶ 展开左侧配置面板';
+  }
+}
+
+function toggleMultiFac() {
+  const isMulti = document.getElementById('sig-model').value === 'multi';
+  document.getElementById('single-fac-wrap').style.display = isMulti ? 'none' : 'block';
+  document.getElementById('multi-fac-wrap').style.display = isMulti ? 'block' : 'none';
+  document.getElementById('bt-show-factor').disabled = isMulti;
+  if(isMulti) document.getElementById('bt-show-factor').checked = false;
+
+  const desc = document.getElementById('multi-formula-desc');
+  if(desc) desc.style.display = isMulti ? 'block' : 'none';
+}
+
+function toggleFS(btn, cardId, chartId) {
+  const card = document.getElementById(cardId);
+  const isFS = card.classList.contains('fullscreen-card');
+  if(isFS) {
+    card.classList.remove('fullscreen-card');
+    btn.innerText = '⛶ 全屏放大';
+  } else {
+    card.classList.add('fullscreen-card');
+    btn.innerText = '✕ 退出全屏';
+  }
+  setTimeout(() => { if(G.charts[chartId]) G.charts[chartId].resize(); }, 10);
+}
+
+// MathJax Safe Rendering Control
+function safeMathJax() {
+  try {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetClear();
+      window.MathJax.typesetPromise().catch(err => console.log('MathJax Error:', err));
+    }
+  } catch (e) { console.log(e); }
+}
+
+function fmtM(s) { return `<span style="color:${s.c}; font-weight:700; padding:2px 6px; border-radius:4px; background:${s.c}1A; border:1px solid ${s.c}40; white-space:nowrap">${s.info.dn}</span>`; }
+function fmtS(s) { return `<span style="color:${s.c}; font-weight:700; padding:2px 6px; border-radius:4px; background:${s.c}1A; border:1px dashed ${s.c}70; white-space:nowrap">${s.info.dn}</span>`; }
+
+/* ═══════════════════════════════════════════
+   CHART.JS PLUGIN (Decision Correctness Markers)
+═══════════════════════════════════════════ */
+const tradeCorrectnessPlugin = {
+  id: 'tradeCorrectness',
+  afterDatasetsDraw(chart, args, options) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((dataset, i) => {
+      if (dataset.customIcons) {
+        const meta = chart.getDatasetMeta(i);
+        meta.data.forEach((element, index) => {
+          const iconObj = dataset.customIcons[index];
+          if(iconObj) {
+            ctx.fillStyle = iconObj.color;
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Draw slightly above the point
+            ctx.fillText(iconObj.text, element.x, element.y - 18);
+          }
+        });
+      }
+    });
+  }
+};
+Chart.register(tradeCorrectnessPlugin);
+
+/* ═══════════════════════════════════════════
+   DATA PREP
+═══════════════════════════════════════════ */
+function buildIDX(){
+  if(typeof QUANT_GLOBAL_DATA==='undefined') return null;
+  const idx = { macro: {}, stock: {}, stList: [], macList: [] };
+  Object.keys(QUANT_GLOBAL_DATA).forEach(gk => {
+    if(gk === '股票数据'){
+      Object.keys(QUANT_GLOBAL_DATA[gk]).forEach(sn => {
+        const m = sn.match(/^(.*?)\(([^)]+)\)$/);
+        const dn = m ? m[1].trim() : sn, code = m ? m[2].trim() : '';
+        idx.stock[sn] = { id:sn, raw:sn, dn, code, t:'s', data:QUANT_GLOBAL_DATA[gk][sn] };
+        idx.stList.push(sn);
+      });
+    } else {
+      Object.keys(QUANT_GLOBAL_DATA[gk]).forEach(n => {
+        idx.macro[n] = { id:n, raw:n, dn:n, code:'', t:'m', data:QUANT_GLOBAL_DATA[gk][n] };
+        idx.macList.push(n);
+      });
+    }
+  });
+  return idx;
+}
+
+function shiftDate(ym, m){
+  if(!m) return ym;
+  const [y, mo] = ym.split('-').map(Number);
+  const t = y * 12 + mo - 1 + m;
+  const ny = Math.floor(t / 12), nm = t % 12 + 1;
+  return `${ny}-${String(nm).padStart(2,'0')}`;
+}
+
+function getRawDates(){
+  let dates = new Set();
+  Object.values(IDX.stock).forEach(s => Object.keys(s.data).forEach(d => dates.add(d)));
+  let arr = [...dates].sort();
+  if(arr.length) {
+    if(!G.startDt) G.startDt = arr[0];
+    if(!G.endDt) G.endDt = arr[arr.length-1];
+    document.getElementById('global-start').value = G.startDt;
+    document.getElementById('global-end').value = G.endDt;
+  }
+}
+
+function setCommonTime(){
+  if(G.sel.length < 2) return;
+  let common = null;
+  G.sel.forEach(s => {
+    const sv = getSeriesInternal(s.id, s.t);
+    const dts = Object.keys(sv);
+    if(!common) common = new Set(dts);
+    else common = new Set(dts.filter(d => common.has(d)));
+  });
+  let arr = [...common].sort();
+  if(arr.length){
+    document.getElementById('global-start').value = arr[0];
+    document.getElementById('global-end').value = arr[arr.length-1];
+    G.startDt = arr[0]; G.endDt = arr[arr.length-1];
+    refreshAll();
+  }
+}
+
+function getSeriesInternal(id, type, lagOverride){
+  const l = lagOverride !== undefined ? lagOverride : (type === 'm' ? G.lag : 0);
+  const raw = type === 'm' ? IDX.macro[id].data : IDX.stock[id].data;
+  const res = {};
+  Object.keys(raw).forEach(k => {
+    let v = type === 'm' ? parseV(raw[k]) : parseV(raw[k]?.[G.pm]);
+    if(isNaN(v)) return;
+    const alignedDate = shiftDate(k, l);
+    res[alignedDate] = { val: v, originalDate: k };
+  });
+  return res;
+}
+
+function getSeries(id, type, lagOverride){
+  const res = getSeriesInternal(id, type, lagOverride);
+  const filtered = {};
+  Object.keys(res).forEach(k => { if(k >= G.startDt && k <= G.endDt) filtered[k] = res[k]; });
+  return filtered;
+}
+
+/* ═══════════════════════════════════════════
+   SIDEBAR & UI EVENT EMITTERS
+═══════════════════════════════════════════ */
+function buildSB(){
+  const wrap = document.getElementById('sb-scroll'); wrap.innerHTML='';
+
+  const gm = document.createElement('div');
+  gm.innerHTML = `<div class="sb-grp-hd" onclick="toggleGroup(this)"><div style="display:flex;align-items:center"><span class="sb-tag t-m">宏观</span> 经济数据</div><span class="chevron">▼</span></div><div class="sb-list" id="sb-m-list"></div>`;
+  wrap.appendChild(gm);
+  const ml = gm.querySelector('#sb-m-list');
+  IDX.macList.forEach(id => {
+    const item = IDX.macro[id];
+    // calc mindt maxdt
+    const dts = Object.keys(item.data).sort();
+    const minDt = dts.length ? dts[0] : '';
+    const maxDt = dts.length ? dts[dts.length-1] : '';
+
+    const d = document.createElement('div'); d.className='sb-item'; d.dataset.id=id; d.dataset.t='m';
+    d.innerHTML = `<div class="sb-ck"><span class="sb-ck-m">✓</span></div><div class="sb-iname" title="${id}"><div style="font-weight:600">${id}</div><div style="font-size:0.75rem;color:var(--text2);margin-top:2px;font-family:var(--mono)">${minDt} 至 ${maxDt}</div></div>`;
+    d.onclick = () => togSel(id, 'm');
+    ml.appendChild(d);
+  });
+
+  const gs = document.createElement('div');
+  gs.innerHTML = `<div class="sb-grp-hd" onclick="toggleGroup(this)"><div style="display:flex;align-items:center"><span class="sb-tag t-s">资产</span> 股票指数</div><span class="chevron">▼</span></div><div class="sb-list" id="sb-s-list"></div>`;
+  wrap.appendChild(gs);
+  const sl = gs.querySelector('#sb-s-list');
+  IDX.stList.forEach(id => {
+    const info = IDX.stock[id];
+    const dts = Object.keys(info.data).sort();
+    const minDt = dts.length ? dts[0] : '';
+    const maxDt = dts.length ? dts[dts.length-1] : '';
+
+    const d = document.createElement('div'); d.className='sb-item'; d.dataset.id=id; d.dataset.t='s';
+    d.innerHTML = `<div class="sb-ck"><span class="sb-ck-m">✓</span></div><div class="sb-iname" title="${info.dn}"><div style="font-weight:600">${info.dn} <span style="font-size:0.75rem;color:var(--text2)">${info.code}</span></div><div style="font-size:0.75rem;color:var(--text2);margin-top:2px;font-family:var(--mono)">${minDt} 至 ${maxDt}</div></div>`;
+    d.onclick = () => togSel(id, 's');
+    sl.appendChild(d);
+  });
+}
+
+function filterSB(q){
+  q = q.toLowerCase();
+  document.querySelectorAll('.sb-item').forEach(el => {
+    const txt = el.innerText.toLowerCase();
+    el.style.display = txt.includes(q) ? '' : 'none';
+  });
+}
+
+function togSel(id, t){
+  const idx = G.sel.findIndex(x => x.id === id);
+  if(idx >= 0) G.sel.splice(idx, 1);
+  else G.sel.push({ id, t, info: t==='m'?IDX.macro[id]:IDX.stock[id], c: '' });
+  G.sel.forEach((s, i) => s.c = nextCol(i));
+  syncUI(); refreshAll();
+}
+function clearAll(){ G.sel=[]; syncUI(); refreshAll(); }
+function rmSel(id){ G.sel = G.sel.filter(x=>x.id!==id); syncUI(); refreshAll(); }
+
+function syncUI(){
+  document.querySelectorAll('.sb-item').forEach(el => { el.classList.toggle('on', G.sel.some(s => s.id === el.dataset.id)); });
+  const w = document.getElementById('sel-wrap');
+  if(!G.sel.length) { w.innerHTML = ''; return; }
+
+  const ms = G.sel.filter(s=>s.t==='m'); const ss = G.sel.filter(s=>s.t==='s');
+  let h = '';
+  if(ms.length){
+    h += `<div class="pill-grp"><span class="pill-grp-lbl" style="color:var(--blue)">宏观</span>`;
+    ms.forEach(s => h+=`<div class="pill" style="border-color:${s.c}44;color:${s.c}">${s.info.dn} <span class="pill-x" onclick="rmSel('${s.id}')">×</span></div>`);
+    h += `</div>`;
+  }
+  if(ss.length){
+    h += `<div class="pill-grp"><span class="pill-grp-lbl" style="color:var(--gold)">资产</span>`;
+    ss.forEach(s => h+=`<div class="pill" style="border-color:${s.c}44;color:${s.c}">${s.info.dn} <span class="pill-x" onclick="rmSel('${s.id}')">×</span></div>`);
+    h += `</div>`;
+  }
+  w.innerHTML = h;
+}
+
+function setPM(btn){ document.querySelectorAll('#seg-pm button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); G.pm=btn.dataset.v; refreshAll(); }
+function setLag(v){ G.lag=parseInt(v); document.getElementById('lag-d').textContent=(v>0?'+':'')+v+'M'; refreshAll(); }
+function swTab(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  G.tab=el.dataset.tab;
+  refreshAll();
+  setTimeout(safeMathJax, 50); // Ensure MathJax renders when tab becomes visible
+}
+
+/* ═══════════════════════════════════════════
+   CHART UTILS & MATH
+═══════════════════════════════════════════ */
+function killChart(id){ if(G.charts[id]){ G.charts[id].destroy(); delete G.charts[id]; } }
+function getChartOpts(){
+  const s = getComputedStyle(document.documentElement);
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:s.getPropertyValue('--text0'),font:{family:s.getPropertyValue('--sans')}}}},
+    scales:{
+      x:{grid:{color:s.getPropertyValue('--chart-grid')},ticks:{color:s.getPropertyValue('--chart-tick')}},
+      y:{grid:{color:s.getPropertyValue('--chart-grid')},ticks:{color:s.getPropertyValue('--chart-tick')}}
+    }
+  }
+}
+function pearson(x, y){
+  const n=x.length; if(n<3)return NaN;
+  const mx=x.reduce((a,b)=>a+b)/n, my=y.reduce((a,b)=>a+b)/n;
+  let num=0, dx2=0, dy2=0;
+  for(let i=0;i<n;i++){ num+=(x[i]-mx)*(y[i]-my); dx2+=(x[i]-mx)**2; dy2+=(y[i]-my)**2; }
+  return (dx2===0||dy2===0)?NaN:num/Math.sqrt(dx2*dy2);
+}
+function getCorrLevel(r){
+  const absR = Math.abs(r);
+  if(isNaN(absR)) return {text: 'N/A', cls: 'tu'};
+  if(absR >= 0.7) return {text: '强相关', cls: r>0?'tp':'tn'};
+  if(absR >= 0.4) return {text: '中度相关', cls: r>0?'tp':'tn'};
+  if(absR >= 0.2) return {text: '弱相关', cls: 'tw'};
+  return {text: '无显著相关', cls: 'tu'};
+}
+
+/* ═══════════════════════════════════════════
+   TAB 1: DASHBOARD
+═══════════════════════════════════════════ */
+function renderDashboard(){
+  let allDates = new Set();
+  const series = G.sel.map(s => {
+    const d = getSeries(s.id, s.t, s.t==='m'?G.lag:0);
+    Object.keys(d).forEach(k => allDates.add(k));
+    return d;
+  });
+  const dates = [...allDates].sort();
+
+  killChart('chart-ts-z');
+  const dsZ = G.sel.map((s, i) => {
+    let vals = dates.map(d => series[i][d]?.val ?? null);
+    const valid = vals.filter(v=>v!=null);
+    if(valid.length>1){
+      const mean = valid.reduce((a,b)=>a+b)/valid.length;
+      const std = Math.sqrt(valid.reduce((a,v)=>a+(v-mean)**2,0)/valid.length) || 1;
+      vals = vals.map(v => v==null ? null : (v-mean)/std);
+    }
+    return { label: s.info.dn, data: vals, borderColor: s.c, borderWidth: 2, pointRadius: 0, tension: 0.2, spanGaps: true, borderDash: s.t === 'm' ? [5, 5] : [] }
+  });
+
+  const optsZ = getChartOpts();
+  optsZ.interaction = { mode: 'index', intersect: false };
+  optsZ.plugins.tooltip = {
+    callbacks: {
+      title: (ctx) => `${ctx[0].label}`,
+      label: (ctx) => {
+        const sIdx = ctx.datasetIndex;
+        const alignedDate = ctx.label;
+        const entry = series[sIdx][alignedDate];
+        const rawVal = entry && entry.val != null ? entry.val.toFixed(4) : 'N/A';
+        const name = G.sel[sIdx].info.dn;
+        if(!entry) return `${name}: 无数据`;
+        return `${name}: ${rawVal} (${entry.originalDate})`;
+      }
+    }
+  };
+  G.charts['chart-ts-z'] = new Chart(document.getElementById('chart-ts-z'), { type:'line', data:{labels:dates, datasets:dsZ}, options:optsZ });
+
+  let mh = `<table class="dtbl"><thead><tr><th>指标交叉矩阵</th>`;
+  G.sel.forEach(s => mh += `<th>${s.info.dn}</th>`);
+  mh += `</tr></thead><tbody>`;
+  G.sel.forEach((s1, i) => {
+    mh += `<tr><td>${s1.t==='m'?fmtM(s1):fmtS(s1)}</td>`;
+    G.sel.forEach((s2, j) => {
+      if(i===j) { mh += `<td style="color:var(--text3)">—</td>`; return; }
+      const common = dates.filter(d => series[i][d]!=null && series[j][d]!=null);
+      const v1 = common.map(d=>series[i][d].val), v2 = common.map(d=>series[j][d].val);
+      const r = pearson(v1, v2);
+      const level = getCorrLevel(r);
+      if(isNaN(r)) mh += `<td>N/A</td>`;
+      else {
+        mh += `<td>
+          <div style="font-family:var(--mono);font-weight:700;font-size:1.1rem;margin-bottom:4px;color:${r>=0?'var(--green)':'var(--red)'}">${r.toFixed(3)}</div>
+          <span class="tag ${level.cls}" style="font-size:0.7rem;padding:2px 4px">${level.text}</span>
+        </td>`;
+      }
+    });
+    mh += `</tr>`;
+  });
+  mh += `</tbody></table>`;
+  document.getElementById('matrix-wrap').innerHTML = mh;
+  safeMathJax();
+}
+
+/* ═══════════════════════════════════════════
+   TAB 2: ROLLING CORRELATION
+═══════════════════════════════════════════ */
+function renderRolling(){
+  const wrap = document.getElementById('rolling-wrap');
+  const ms = G.sel.filter(s=>s.t==='m'); const ss = G.sel.filter(s=>s.t==='s');
+  if(!ms.length || !ss.length){ wrap.innerHTML = `<div style="color:var(--text2);text-align:center;padding:40px">请至少选择一个宏观指标和一个资产。</div>`; return; }
+
+  let html = '';
+  let renderJobs = [];
+  ms.forEach((m, mi) => {
+    ss.forEach((s, si) => {
+      const cid = `roll_${mi}_${si}`;
+      const cardId = `card_${cid}`;
+      html += `<div class="card" id="${cardId}"><div class="card-hd"><span class="card-t">${fmtM(m)} 动态比对 ${fmtS(s)}</span><button class="btn-act" onclick="toggleFS(this, '${cardId}', '${cid}')">⛶ 全屏放大</button></div><div class="card-body"><div class="cw"><canvas id="${cid}"></canvas></div></div></div>`;
+      renderJobs.push({m, s, cid});
+    });
+  });
+  wrap.innerHTML = html;
+
+  renderJobs.forEach(job => {
+    const sM = getSeries(job.m.id, 'm', 0); const sS = getSeries(job.s.id, 's', 0);
+    const common = Object.keys(sM).filter(d => sS[d]!=null).sort();
+    const vM = common.map(d=>sM[d].val); const vS = common.map(d=>sS[d].val);
+
+    killChart(job.cid);
+    const datasets = [];
+    [6, 12, 24].forEach((w, idx) => {
+      if(common.length <= w) return;
+      const rc = [];
+      for(let i=w-1; i<common.length; i++) rc.push(pearson(vM.slice(i-w+1, i+1), vS.slice(i-w+1, i+1)));
+      datasets.push({ label:`${w}个月滚动相关性`, data:rc.map((v,i)=>({x:common[i+w-1],y:v})), borderColor:['#f0a030','#4d8ef0','#26c4ad'][idx], borderWidth:1.5, pointRadius:0, fill:false, tension:0.2 });
+    });
+    datasets.push({ label:'零轴基准', data:common.map(d=>({x:d,y:0})), borderColor:'var(--text3)', borderDash:[4,4], borderWidth:1, pointRadius:0 });
+
+    const opts = getChartOpts(); opts.scales.y = {min:-1, max:1}; opts.interaction = {mode:'index', intersect:false};
+    G.charts[job.cid] = new Chart(document.getElementById(job.cid), { type:'line', data:{datasets}, options:opts });
+  });
+  safeMathJax();
+}
+
+/* ═══════════════════════════════════════════
+   TAB 3: LEAD-LAG ANALYSIS
+═══════════════════════════════════════════ */
+function renderLeadLag(){
+  const wrap = document.getElementById('leadlag-wrap');
+  const ms = G.sel.filter(s=>s.t==='m'); const ss = G.sel.filter(s=>s.t==='s');
+  if(!ms.length || !ss.length){ wrap.innerHTML = `<div style="color:var(--text2);text-align:center;padding:40px">请至少选择一个宏观指标和一个资产。</div>`; return; }
+
+  let html = '';
+  let renderJobs = [];
+  const lags = [-12,-9,-6,-3,-2,-1,0,1,2,3,6,9,12];
+
+  ms.forEach((m, mi) => {
+    ss.forEach((s, si) => {
+      const res = [];
+      lags.forEach(l => {
+        const sM = getSeries(m.id, 'm', l); const sS = getSeries(s.id, 's', 0);
+        const common = Object.keys(sM).filter(d => sS[d]!=null);
+        if(common.length>10){
+          const r = pearson(common.map(d=>sM[d].val), common.map(d=>sS[d].val));
+          res.push({lag: l, r: r, n: common.length});
+        }
+      });
+      if(res.length){
+        const best = res.reduce((a,b)=> Math.abs(b.r)>Math.abs(a.r)?b:a);
+        const typeHtml = best.lag > 0 ? `<span class="tag tp">先行预测 (领先 ${best.lag}M)</span>` : best.lag < 0 ? `<span class="tag tw">滞后确认 (滞后 ${Math.abs(best.lag)}M)</span>` : `<span class="tag" style="background:var(--blue-dim);color:var(--blue)">同步共振</span>`;
+        const cid = `ll_${mi}_${si}`;
+        const cardId = `card_${cid}`;
+
+        let tblHtml = `<table class="dtbl" style="margin-top:10px;border-top:1px solid var(--border1)"><thead><tr><th>Lag 平移窗口</th><th>时序评估</th><th>Pearson R</th><th>样本池容量</th></tr></thead><tbody>`;
+        res.forEach(r => {
+          const lT = getCorrLevel(r.r);
+          const isBest = r.lag === best.lag;
+          tblHtml += `<tr style="${isBest ? 'background:rgba(212,168,67,0.08)' : ''}">
+            <td style="font-family:var(--mono);${isBest?'font-weight:700;color:var(--gold)':''}">${r.lag>0?'+':''}${r.lag}M</td>
+            <td>${r.lag>0?`<span class="tag tu">前瞻指标</span>`:r.lag<0?`<span class="tag tw">滞后指标</span>`:`<span class="tag tu">同步指标</span>`}</td>
+            <td style="font-family:var(--mono);color:${r.r>=0?'var(--green)':'var(--red)'}">${r.r.toFixed(3)} <span class="tag ${lT.cls}" style="transform:scale(0.8)">${lT.text}</span></td>
+            <td>${r.n} 组</td>
+          </tr>`;
+        });
+        tblHtml += `</tbody></table>`;
+
+        html += `<div class="card" id="${cardId}"><div class="card-hd"><span class="card-t">${fmtM(m)} 平移探测 ${fmtS(s)}</span><div style="display:flex;align-items:center;gap:10px"><div style="font-size:0.9rem">极值 $|R|_{max} = ${Math.abs(best.r).toFixed(3)}$ | ${typeHtml}</div><button class="btn-act" onclick="toggleFS(this, '${cardId}', '${cid}')">⛶ 全屏放大</button></div></div><div class="card-body" style="padding:0"><div class="cw" style="padding:20px"><canvas id="${cid}"></canvas></div>${tblHtml}</div></div>`;
+        renderJobs.push({cid, res, best});
+      }
+    });
+  });
+  wrap.innerHTML = html;
+
+  renderJobs.forEach(job => {
+    killChart(job.cid);
+    const ctx = document.getElementById(job.cid).getContext('2d');
+    const gradPos = ctx.createLinearGradient(0, 0, 0, 250);
+    gradPos.addColorStop(0, 'rgba(77, 142, 240, 0.8)'); gradPos.addColorStop(1, 'rgba(77, 142, 240, 0.2)');
+    const gradNeg = ctx.createLinearGradient(0, 0, 0, 250);
+    gradNeg.addColorStop(0, 'rgba(240, 80, 80, 0.2)'); gradNeg.addColorStop(1, 'rgba(240, 80, 80, 0.8)');
+
+    const colors = job.res.map(r => r.lag === job.best.lag ? '#d4a843' : r.r >= 0 ? gradPos : gradNeg);
+
+    const opts = getChartOpts();
+    opts.scales.y = {min:-1, max:1, grid:{color: 'rgba(200,205,220,0.3)'}};
+    opts.plugins.tooltip = { callbacks: { label: (c) => `相关系数 R: ${c.raw.toFixed(3)}` }};
+
+    G.charts[job.cid] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: job.res.map(r=>(r.lag>0?'+':'')+r.lag+'M'), datasets: [{label:'Pearson R', data:job.res.map(r=>r.r), backgroundColor:colors, borderRadius: 4, barPercentage: 0.6}] },
+      options: opts
+    });
+  });
+  safeMathJax();
+}
+
+/* ═══════════════════════════════════════════
+   TAB 4: SIGNAL BACKTEST & STRATEGY ALGORITHM
+═══════════════════════════════════════════ */
+function executeSimulation(facIds, assetId, trSt, trEd, teSt, teEd, benchmarkType, minR) {
+  const astItem = G.sel.find(s => s.id === assetId);
+  const sS = getSeriesInternal(assetId, 's', 0);
+
+  let validFactors = [];
+  let allLagResults = [];
+
+  facIds.forEach(fid => {
+    const facItem = G.sel.find(s => s.id === fid);
+    let bestR = 0, bestLag = 0;
+
+    [-12,-9,-6,-3,-2,-1,0,1,2,3,6,9,12].forEach(l => {
+      const tM_l = getSeriesInternal(fid, 'm', l);
+      const cmn_l = Object.keys(tM_l).filter(d => sS[d]!=null && d>=trSt && d<=trEd);
+      if(cmn_l.length > 5) {
+        const r = pearson(cmn_l.map(d=>tM_l[d].val), cmn_l.map(d=>sS[d].val));
+        const mu = cmn_l.map(d=>tM_l[d].val).reduce((a,b)=>a+b)/cmn_l.length;
+        const sigma = Math.sqrt(cmn_l.map(d=>tM_l[d].val).reduce((a,v)=>a+(v-mu)**2,0)/cmn_l.length) || 1;
+
+        allLagResults.push({ factorName: facItem.info.dn, lag: l, r: r, mu: mu, sigma: sigma });
+
+        // 核心修正：严格只搜寻具备真实前瞻预测价值的时点 (Lag >= 1)
+        if(l >= 1 && Math.abs(r) > Math.abs(bestR)) {
+          bestR = r; bestLag = l;
+        }
+      }
+    });
+
+    if(Math.abs(bestR) >= minR) {
+      const tM = getSeriesInternal(fid, 'm', bestLag);
+      const trainVals = Object.keys(tM).filter(d => d>=trSt && d<=trEd).map(d => tM[d].val);
+      const mu = trainVals.reduce((a,b)=>a+b)/trainVals.length;
+      const sigma = Math.sqrt(trainVals.reduce((a,v)=>a+(v-mu)**2,0)/trainVals.length) || 1;
+
+      validFactors.push({
+        id: fid, item: facItem, lag: bestLag, r: bestR,
+        weight: Math.abs(bestR), sign: Math.sign(bestR), mu, sigma
+      });
+    }
+  });
+
+  if(validFactors.length === 0) return { error: true, allLagResults };
+
+  const testDates = Object.keys(sS).filter(d => d>=teSt && d<=teEd).sort();
+  if(!testDates.length) return { error: true, allLagResults };
+
+  let cap = 10000, bCap = 10000;
+  let equityCurve = [], benchCurve = [], posCurve = [];
+  let trades = 0, activeMonths = 0;
+
+  let runningMaxLoss = 0, runningMaxBLoss = 0;
+  let dailyRets = [];
+
+  let currentPos = 1.0;
+  let histZ = [];
+  let prevZ = null;
+  let tradeLogs = [];
+  let factorTracking = {};
+
+  const isSingle = validFactors.length === 1;
+
+  for(let i=0; i<testDates.length; i++){
+    const d = testDates[i];
+    const assetP = sS[d].val;
+
+    let zSum = 0, wSum = 0;
+    let mainFactorRaw = null;
+
+    validFactors.forEach(f => {
+      const tM = getSeriesInternal(f.id, 'm', f.lag);
+      const mEntry = tM[d];
+      if(mEntry && mEntry.val != null) {
+        const z_i = f.sign * (mEntry.val - f.mu) / f.sigma;
+        zSum += z_i * f.weight;
+        wSum += f.weight;
+        if(isSingle) mainFactorRaw = mEntry.val;
+      }
+    });
+
+    let z = wSum > 0 ? zSum / wSum : 0;
+    histZ.push(z);
+
+    let deltaZ = prevZ !== null ? z - prevZ : 0;
+    prevZ = z;
+
+    const ma3 = histZ.length >= 3 ? histZ.slice(-3).reduce((a,b)=>a+b)/3 : z;
+    const ma6 = histZ.length >= 6 ? histZ.slice(-6).reduce((a,b)=>a+b)/6 : ma3;
+    const macdZ = ma3 - ma6;
+
+    if(isSingle) factorTracking[d] = mainFactorRaw;
+
+    // ---- 严防死守模型策略 ----
+    let targetPos = 1.0;
+    let rationale = '指标健康，满仓跟随';
+
+    if (z < -1.0 && macdZ <= 0) {
+      targetPos = 0.0; rationale = `指标跌入极寒且趋势恶化，强制清仓规避`;
+    } else if (z < -0.5 && macdZ <= 0) {
+      targetPos = 0.3; rationale = `宏观显著衰退，动量向下死叉，削减敞口至极轻仓`;
+    } else if (z < 0 || (ma3 > 0.5 && macdZ <= -0.4)) {
+      targetPos = 0.5;
+      if(z < 0) rationale = `宏观水位跌破荣枯线，降回半仓防御`;
+      else rationale = `宏观高位但动量突发失速，削减半仓锁定利润`;
+    } else if (z >= 0 && macdZ <= 0 && deltaZ < 0) {
+      targetPos = 0.8; rationale = `指标高位温和放缓，收缩防线至重仓`;
+    } else if (currentPos < 1.0 && z >= 0 && macdZ > 0) {
+      rationale = `宏观指标脱离危险区，趋势向上共振，恢复满仓配置`;
+    }
+
+    let stepAssetRet = 0, stepProfit = 0, stepBProfit = 0;
+    if(i > 0) {
+      const prevP = sS[testDates[i-1]].val;
+      stepAssetRet = (assetP - prevP) / prevP;
+
+      let actualBenchRet = benchmarkType === 'half' ? 0.5 * stepAssetRet : stepAssetRet;
+      let prevBCap = bCap;
+      bCap *= (1 + actualBenchRet);
+      stepBProfit = bCap - prevBCap;
+
+      stepProfit = cap * currentPos * stepAssetRet;
+      cap += stepProfit;
+      if(currentPos > 0) activeMonths++;
+    }
+
+    let currentLoss = cap < 10000 ? (10000 - cap) / 10000 : 0;
+    if(currentLoss > runningMaxLoss) runningMaxLoss = currentLoss;
+
+    let currentBLoss = bCap < 10000 ? (10000 - bCap) / 10000 : 0;
+    if(currentBLoss > runningMaxBLoss) runningMaxBLoss = currentBLoss;
+
+    let tradeDiff = targetPos - currentPos;
+    let actStr = `<span style="color:#718096; background:rgba(113,128,150,0.1); padding:2px 6px; border-radius:4px; font-weight:bold">⚪ 维持仓位</span>`;
+    if(tradeDiff > 0) { actStr = `<span style="color:red; background:rgba(240,80,80,0.1); padding:2px 6px; border-radius:4px; font-weight:bold">🔴 增仓 ${(tradeDiff*100).toFixed(0)}%</span>`; trades++; }
+    else if(tradeDiff < 0) { actStr = `<span style="color:green; background:rgba(46,204,113,0.1); padding:2px 6px; border-radius:4px; font-weight:bold">🟢 减仓 ${(Math.abs(tradeDiff)*100).toFixed(0)}%</span>`; trades++; }
+
+    tradeLogs.push({
+      date: d, z, deltaZ, macdZ, act: actStr, pos: targetPos, price: assetP, assetRet: stepAssetRet,
+      stepProfit, stepBProfit, cap, bCap, rationale, tradeDiff, ret: (cap/10000 - 1)*100,
+      runningMaxLoss, runningMaxBLoss, isTrade: tradeDiff !== 0
+    });
+
+    currentPos = targetPos;
+    dailyRets.push(stepAssetRet * currentPos);
+
+    equityCurve.push(cap);
+    benchCurve.push(bCap);
+    posCurve.push(targetPos);
+  }
+
+  // Label "correctness" of trades based on next month's return
+  for (let i = 0; i < tradeLogs.length; i++) {
+    if (tradeLogs[i].isTrade && i + 1 < testDates.length) {
+      const nextRet = tradeLogs[i+1].assetRet;
+      const isBuy = tradeLogs[i].tradeDiff > 0;
+      const isSell = tradeLogs[i].tradeDiff < 0;
+
+      if (isBuy && nextRet > 0) tradeLogs[i].correct = true;
+      else if (isBuy && nextRet <= 0) tradeLogs[i].correct = false;
+      else if (isSell && nextRet < 0) tradeLogs[i].correct = true;
+      else if (isSell && nextRet >= 0) tradeLogs[i].correct = false;
+    }
+  }
+
+  const totalRet = (cap - 10000) / 10000;
+  const bTotalRet = (bCap - 10000) / 10000;
+  const alpha = totalRet - bTotalRet;
+  const avgMRet = dailyRets.reduce((a,b)=>a+b,0)/dailyRets.length;
+  const stdMRet = Math.sqrt(dailyRets.reduce((a,v)=>a+(v-avgMRet)**2,0)/dailyRets.length) || 0.0001;
+  const sharpe = (avgMRet * 12) / (stdMRet * Math.sqrt(12));
+
+  return {
+    validFactors, allLagResults, testDates, trades, activeMonths,
+    maxLoss: runningMaxLoss, maxBLoss: runningMaxBLoss,
+    totalRet, bTotalRet, alpha, sharpe, tradeLogs, equityCurve, benchCurve, posCurve, factorTracking
+  };
+}
+
+function updateSplitDates() {
+  const facId = document.getElementById('sig-factor').value;
+  const assetId = document.getElementById('sig-asset').value;
+  if(!facId || !assetId) return;
+
+  const tM = getSeriesInternal(facId, 'm', 0);
+  const tS = getSeriesInternal(assetId, 's', 0);
+  const cmn = Object.keys(tM).filter(d => tS[d]!=null).sort();
+
+  if(cmn.length > 12) {
+    const ratio = parseInt(document.getElementById('sig-split-slider').value) / 10;
+    const splitIdx = Math.floor(cmn.length * ratio);
+    document.getElementById('sig-train-start').value = cmn[0];
+    document.getElementById('sig-train-end').value = cmn[splitIdx];
+    document.getElementById('sig-test-start').value = cmn[splitIdx+1] || cmn[splitIdx];
+    document.getElementById('sig-test-end').value = cmn[cmn.length-1];
+  }
+}
+
+function initBacktestDates() {
+  updateSplitDates();
+}
+
+function renderSignal(){
+  const sM = G.sel.filter(s=>s.t==='m');
+  const sS = G.sel.filter(s=>s.t==='s');
+
+  const selAsset = document.getElementById('sig-asset');
+  const selFactor = document.getElementById('sig-factor');
+  selAsset.innerHTML = sS.map(s => `<option value="${s.id}">${s.info.dn}</option>`).join('');
+  selFactor.innerHTML = sM.map(s => `<option value="${s.id}">${s.info.dn}</option>`).join('');
+
+  if(sM.length > 0 && sS.length > 0 && !document.getElementById('sig-train-start').value) {
+    initBacktestDates();
+  }
+  runBacktest();
+}
+
+function runBacktest(){
+  const wrap = document.getElementById('bt-result-wrap');
+  const warnWrap = document.getElementById('bt-warning-wrap');
+  const assetId = document.getElementById('sig-asset').value;
+  const model = document.getElementById('sig-model').value;
+  const singleFacId = document.getElementById('sig-factor').value;
+  const benchmarkType = document.getElementById('sig-benchmark').value;
+  const minR = parseFloat(document.getElementById('sig-r-slider').value) / 100;
+
+  const showFactor = document.getElementById('bt-show-factor').checked;
+  const showZ = document.getElementById('bt-show-z').checked;
+
+  const trSt = document.getElementById('sig-train-start').value;
+  const trEd = document.getElementById('sig-train-end').value;
+  const teSt = document.getElementById('sig-test-start').value;
+  const teEd = document.getElementById('sig-test-end').value;
+
+  warnWrap.innerHTML = '';
+  if(!assetId || (model === 'single' && !singleFacId)) { wrap.style.display='none'; return; }
+  if(teSt <= trEd) { alert('数据验证警告：Test 开始时间必须位于 Train 结束时间之后，以防范数据窥探。'); return; }
+
+  const facIds = model === 'single' ? [singleFacId] : G.sel.filter(s=>s.t==='m').map(s=>s.id);
+  const astItem = G.sel.find(s => s.id === assetId);
+
+  const res = executeSimulation(facIds, assetId, trSt, trEd, teSt, teEd, benchmarkType, minR);
+
+  if(!res || res.error) {
+    let html = `<div style="padding:20px;color:var(--red);text-align:center;background:var(--bg2);border-radius:var(--r)">所选因子在先行指标判定要求下（$Lag \\ge 1$ 且 $|R|_{max} > ${minR}$）均失效，或时间区间无交集。</div>`;
+    if(res && res.allLagResults && res.allLagResults.length > 0) {
+      html += `<table class="dtbl" style="margin-top:10px"><thead><tr><th>因子名称</th><th>时差(Lag)</th><th>相关系数 R</th></tr></thead><tbody>`;
+      res.allLagResults.forEach(l => { html += `<tr><td>${l.factorName}</td><td>${l.lag}M</td><td>${l.r.toFixed(3)}</td></tr>`; });
+      html += `</tbody></table>`;
+    }
+    warnWrap.innerHTML = html;
+    wrap.style.display='none';
+    return;
+  }
+  wrap.style.display='block';
+
+  let tblHtml = `<table class="dtbl"><thead><tr><th>因子名称</th><th>时差 (Lag)</th><th>相关系数 (R)</th><th>拟合均值 ($\\mu$)</th><th>拟合标准差 ($\\sigma$)</th></tr></thead><tbody>`;
+  res.allLagResults.forEach(r => {
+    const isValidBest = res.validFactors.find(f => f.item.info.dn === r.factorName && f.lag === r.lag);
+    tblHtml += `<tr style="${isValidBest ? 'background:rgba(212,168,67,0.1);font-weight:bold' : ''}">
+      <td>${r.factorName}</td>
+      <td style="font-family:var(--mono)">${r.lag>0?'+':''}${r.lag}M</td>
+      <td style="font-family:var(--mono);color:${r.r>=0?'var(--green)':'var(--red)'}">${r.r.toFixed(3)}</td>
+      <td style="font-family:var(--mono)">${r.mu.toFixed(4)}</td>
+      <td style="font-family:var(--mono)">${r.sigma.toFixed(4)}</td>
+    </tr>`;
+  });
+  tblHtml += `</tbody></table>`;
+  document.getElementById('model-params-table').innerHTML = tblHtml;
+
+  const radarWrap = document.getElementById('radar-container');
+  // Dynamic Chart type switching to guarantee display
+  if(res.validFactors.length >= 1) {
+    radarWrap.style.display = 'block';
+    killChart('chart-radar');
+
+    let rData = res.validFactors.map(f => f.weight);
+    let rLabels = res.validFactors.map(f => f.item.info.dn.slice(0,8));
+    let rColors = res.validFactors.map(f => f.sign > 0 ? 'rgba(240,80,80,0.8)' : 'rgba(46,204,113,0.8)');
+
+    const isRadar = res.validFactors.length >= 3;
+
+    if (isRadar) {
+      G.charts['chart-radar'] = new Chart(document.getElementById('chart-radar'), {
+        type: 'radar',
+        data: { labels: rLabels, datasets: [{ label: '前瞻预测强度 |R|', data: rData, backgroundColor: 'rgba(77,142,240,0.15)', borderColor: 'var(--blue)', borderWidth: 1.5, pointBackgroundColor: rColors, pointRadius: 5 }] },
+        options: { responsive:true, maintainAspectRatio:false, layout:{padding: 25}, scales: { r: { angleLines: {color: 'rgba(200,205,220,0.5)'}, grid: {color: 'rgba(200,205,220,0.5)'}, pointLabels: {font: {size:11, family: 'sans-serif'}, color:'var(--text2)', padding: 15}, ticks:{display:false}, min: 0, max: 1 } }, plugins: {legend: {display:false}, tooltip:{callbacks:{label:(c)=>`预测强度: ${c.raw.toFixed(3)}`}}} }
+      });
+    } else {
+      G.charts['chart-radar'] = new Chart(document.getElementById('chart-radar'), {
+        type: 'bar',
+        data: { labels: rLabels, datasets: [{ label: '前瞻预测强度 |R|', data: rData, backgroundColor: rColors, borderRadius: 4 }] },
+        options: { responsive:true, maintainAspectRatio:false, indexAxis: 'y', layout:{padding: 10}, scales: { x: { min: 0, max: 1, grid: { color: 'rgba(200,205,220,0.5)' } }, y: { grid: { display: false } } }, plugins: { legend: {display:false}, tooltip:{callbacks:{label:(c)=>`预测强度: ${c.raw.toFixed(3)}`}}} }
+      });
+    }
+  } else {
+    radarWrap.style.display = 'none';
+  }
+
+  document.getElementById('res-ret').innerText = (res.totalRet>=0?'+':'') + (res.totalRet*100).toFixed(2) + '%';
+  document.getElementById('res-ret').className = res.totalRet >= 0 ? 'met-v txt-red' : 'met-v txt-green';
+  document.getElementById('res-alpha').innerText = (res.alpha>0?'+':'') + (res.alpha*100).toFixed(2) + '%';
+  document.getElementById('res-alpha').className = res.alpha >= 0 ? 'met-v txt-red' : 'met-v txt-green';
+  document.getElementById('res-sharpe').innerText = res.sharpe.toFixed(2);
+  document.getElementById('res-sharpe').className = res.sharpe >= 1 ? 'met-v txt-red' : 'met-v';
+  document.getElementById('res-dd').innerText = (res.maxLoss*100).toFixed(2) + '%';
+  document.getElementById('res-trades').innerText = res.trades + ' 次';
+
+  let logHtml = `<table class="dtbl" style="min-width:1450px"><thead><tr>
+    <th>交易日期</th><th>因子得分(Z) / 趋势动量</th><th>交易决策依据</th><th>当月交易动作</th><th>期末持仓比例</th><th>当期涨跌幅</th><th>当月盈亏 (策略 / 基准)</th><th>历史最大亏本率 (策略 / 基准)</th><th>当前总资产 (策略 / 基准)</th><th>累计收益率 (策略 / 基准)</th>
+    </tr></thead><tbody>`;
+
+  const logsRev = [...res.tradeLogs].reverse();
+  logsRev.forEach(log => {
+    const pftColor = log.stepProfit >= 0 ? 'var(--red)' : 'var(--green)';
+    const astColor = log.assetRet >= 0 ? 'var(--red)' : 'var(--green)';
+
+    let actDisp = log.act;
+    if (log.correct === true) actDisp += ` <span style="color:var(--green);font-weight:bold;margin-left:4px">✓</span>`;
+    else if (log.correct === false) actDisp += ` <span style="color:var(--red);font-weight:bold;margin-left:4px">✕</span>`;
+
+    logHtml += `<tr style="${log.tradeDiff !== 0 ? 'background:rgba(212,168,67,0.06)' : ''}">
+      <td style="font-family:var(--mono);font-weight:600">${log.date}</td>
+      <td style="font-family:var(--mono)"><span style="color:${log.z>0?'var(--red)':'var(--green)'}">${log.z.toFixed(2)}</span> / <span style="color:${log.macdZ>0?'var(--red)':'var(--green)'}">${log.macdZ>0?'+':''}${log.macdZ.toFixed(2)}</span></td>
+      <td style="font-size:0.85rem">${log.rationale}</td>
+      <td>${actDisp}</td>
+      <td style="font-family:var(--mono);font-weight:700;color:var(--blue)">${(log.pos*100).toFixed(0)}%</td>
+      <td style="font-family:var(--mono)">${log.price.toFixed(4)} (<span style="color:${astColor}">${log.assetRet>=0?'+':''}${(log.assetRet*100).toFixed(2)}%</span>)</td>
+      <td style="font-family:var(--mono)"><span style="color:${pftColor}">${log.stepProfit>=0?'+':''}${log.stepProfit.toFixed(2)}</span> / <span style="color:var(--text2)">${log.stepBProfit>=0?'+':''}${log.stepBProfit.toFixed(2)}</span></td>
+      <td style="font-family:var(--mono)"><span style="color:var(--red);font-weight:700">${(log.runningMaxLoss*100).toFixed(2)}%</span> / <span style="color:var(--text2)">${(log.runningMaxBLoss*100).toFixed(2)}%</span></td>
+      <td style="font-family:var(--mono);font-weight:700">¥${log.cap.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2})} / ¥${log.bCap.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+      <td style="font-family:var(--mono);font-size:0.8rem">
+        <span style="color:${log.ret>=0?'var(--red)':'var(--green)'}">${(log.ret).toFixed(2)}%</span> / <span style="color:var(--text3)">${((log.bCap-10000)/100).toFixed(2)}%</span>
+      </td>
+    </tr>`;
+  });
+  logHtml += `</tbody></table>`;
+  document.getElementById('trade-log-wrap').innerHTML = logHtml;
+
+  killChart('chart-bt');
+  let buyPts = [], buyBg = [], buyBorder = [], buyRadius = [], buyIcons = [];
+  let sellPts = [], sellBg = [], sellBorder = [], sellRadius = [], sellIcons = [];
+
+  res.tradeLogs.forEach((log, i) => {
+    if(log.tradeDiff !== 0) {
+      let absDiff = Math.abs(log.tradeDiff);
+      let r = 5 + absDiff * 8;
+
+      let icon = '';
+      if(log.correct === true) icon = '✓';
+      else if(log.correct === false) icon = '✕';
+
+      if(log.tradeDiff > 0) {
+        buyPts.push({x: log.date, y: res.equityCurve[i]});
+        buyRadius.push(r);
+        buyBg.push(`rgba(240,80,80,${0.3 + absDiff*0.6})`);
+        buyBorder.push('rgba(240,80,80,1)');
+        buyIcons.push({text: icon, color: log.correct ? '#2ecc71' : '#f05050'});
+      } else {
+        sellPts.push({x: log.date, y: res.equityCurve[i]});
+        sellRadius.push(r);
+        sellBg.push(`rgba(46,204,113,${0.3 + absDiff*0.6})`);
+        sellBorder.push('rgba(46,204,113,1)');
+        sellIcons.push({text: icon, color: log.correct ? '#2ecc71' : '#f05050'});
+      }
+    }
+  });
+
+  let datasets = [];
+  const eqData = { label:'量化策略资金净值 (左轴)', data:res.equityCurve, borderColor:'var(--gold)', fill:false, tension:0.1, borderWidth: 2.5, pointRadius: 0, yAxisID: 'y1' };
+  const benchData = { label:`被动持有基准线 (${benchmarkType==='half'?'50%半仓':'100%满仓'})`, data:res.benchCurve, borderColor:'var(--text2)', borderDash: [5,5], fill:false, tension:0.1, borderWidth: 1.5, pointRadius: 0, yAxisID: 'y1' };
+  const posData = { label:'持仓比例 % (右轴)', data:res.posCurve.map(p=>p*100), stepped: true, backgroundColor:'rgba(77,142,240,0.1)', borderColor:'rgba(77,142,240,0.4)', borderWidth:1, fill:true, pointRadius:0, yAxisID: 'yPos' };
+
+  const bScatter = {
+    label: '买入加仓',
+    data: buyPts, type: 'scatter', backgroundColor: buyBg, borderColor: buyBorder, borderWidth: 1.5,
+    pointStyle: 'triangle', rotation: 0, pointRadius: buyRadius, pointHoverRadius: buyRadius.map(r=>r+2), yAxisID: 'y1',
+    customIcons: buyIcons
+  };
+  const sScatter = {
+    label: '卖出减仓',
+    data: sellPts, type: 'scatter', backgroundColor: sellBg, borderColor: sellBorder, borderWidth: 1.5,
+    pointStyle: 'triangle', rotation: 180, pointRadius: sellRadius, pointHoverRadius: sellRadius.map(r=>r+2), yAxisID: 'y1',
+    customIcons: sellIcons
+  };
+
+  datasets.push(posData, eqData, benchData, bScatter, sScatter);
+
+  if (showZ) {
+    datasets.push({
+      label: '宏观得分走势 Z-Score (隐藏轴)',
+      data: res.tradeLogs.map(l => l.z), borderColor: 'rgba(77, 142, 240, 0.5)', borderDash: [2,2], borderWidth: 1.5, fill: false, pointRadius: 0, tension: 0.2, yAxisID: 'yFactor'
+    });
+  }
+
+  if (showFactor) {
+    let auxData = [];
+    if (model === 'single') auxData = res.testDates.map(d => res.factorTracking[d]);
+    else auxData = res.tradeLogs.map(l => l.z);
+    datasets.push({
+      label: model==='single'?'单因子原值 (隐藏轴)':'多因子合成得分 Z (隐藏轴)',
+      data: auxData, borderColor: 'rgba(155, 114, 240, 0.5)', borderDash: [4,4], borderWidth: 1.5, fill: false, pointRadius: 0, tension: 0.2, yAxisID: 'yFactor'
+    });
+  }
+
+  const opts = getChartOpts();
+  opts.interaction = { mode: 'index', intersect: false };
+  opts.scales.y1 = { type: 'linear', position: 'left', title: {display:true, text:'策略净值余额 (起手 ¥10,000)'}, grid:{color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid')} };
+  opts.scales.yPos = { type: 'linear', position: 'right', min:0, max:100, title: {display:true, text:'持仓比例 %'}, grid:{drawOnChartArea:false} };
+  if(showFactor || showZ) opts.scales.yFactor = { display: false };
+  delete opts.scales.y;
+
+  opts.plugins.tooltip = {
+    callbacks: {
+      label: (c) => {
+        if(c.dataset.yAxisID === 'yFactor') return `${c.dataset.label.split(' ')[0]}: ${c.raw.toFixed(4)}`;
+        if(c.dataset.type === 'scatter') {
+            const iconObj = c.dataset.customIcons[c.dataIndex];
+            const stat = iconObj && iconObj.text ? (iconObj.text === '✓' ? '(避开跌势/抓住涨幅)' : '(踏空/被套)') : '';
+            return `操作记录: ${c.dataset.label} ${stat}`;
+        }
+        return `${c.dataset.label.split(' ')[0]}: ¥${c.raw.y !== undefined ? c.raw.y.toFixed(2) : c.raw.toFixed(2)}`;
+      }
+    }
+  };
+
+  G.charts['chart-bt'] = new Chart(document.getElementById('chart-bt'), { type:'line', data:{labels:res.testDates, datasets:datasets}, options:opts });
+
+  safeMathJax();
+}
+
+/* ═══════════════════════════════════════════
+   TAB 5: COMPREHENSIVE REPORT
+═══════════════════════════════════════════ */
+function renderReport(){
+  const wrap = document.getElementById('report-wrap');
+  const ms = G.sel.filter(s=>s.t==='m'); const ss = G.sel.filter(s=>s.t==='s');
+  if(!ms.length || !ss.length){ wrap.innerHTML = `<div style="text-align:center;color:var(--text2);padding:40px">请至少选择一个宏观经济指标和一个股票标的以生成完整的研报。</div>`; return; }
+
+  let corrs = []; let leads = [];
+  ms.forEach(m => {
+    ss.forEach(s => {
+      const sM = getSeries(m.id, 'm'); const sS = getSeries(s.id, 's');
+      const common = Object.keys(sM).filter(d => sS[d]!=null).sort();
+      if(common.length>10){
+        corrs.push({ m, s, r: pearson(common.map(d=>sM[d].val), common.map(d=>sS[d].val)), n:common.length });
+      }
+    });
+  });
+  corrs.sort((a,b)=> Math.abs(b.r) - Math.abs(a.r));
+
+  let allCorrText = "本区间内指标的线性相关性检验结果如下：<br>";
+  corrs.forEach((c, i) => {
+    allCorrText += `<div style="margin-bottom:8px;margin-top:8px">&nbsp;&nbsp;&nbsp;&nbsp;<b>[${i+1}]</b> 指标：${fmtM(c.m)} $\\Longleftrightarrow$ 资产：${fmtS(c.s)}：Pearson $R = ${c.r.toFixed(3)}$，属 <span class="tag ${getCorrLevel(c.r).cls}">${getCorrLevel(c.r).text}</span></div>`;
+  });
+
+  const trSt = document.getElementById('sig-train-start').value || G.startDt;
+  const trEd = document.getElementById('sig-train-end').value || G.endDt;
+
+  let localLeads = [];
+  ms.forEach(m => {
+    ss.forEach(s => {
+      let llRes = [];
+      [0, 1, 2, 3, 6, 9, 12].forEach(l => {
+        const tM = getSeriesInternal(m.id, 'm', l); const tS = getSeriesInternal(s.id, 's', 0);
+        const cmn = Object.keys(tM).filter(d => tS[d]!=null && d>=trSt && d<=trEd);
+        if(cmn.length>5) llRes.push({lag:l, r: pearson(cmn.map(d=>tM[d].val), cmn.map(d=>tS[d].val))});
+      });
+      if(llRes.length){ localLeads.push({m, s, best: llRes.reduce((a,b)=> Math.abs(b.r)>Math.abs(a.r)?b:a)}); }
+    });
+  });
+
+  let leadText = localLeads.filter(l => l.best.lag > 0).sort((a,b)=>b.best.r - a.best.r).map(l => `在校验期内，指标 ${fmtM(l.m)} 领先于资产 ${fmtS(l.s)} 约 <b>${l.best.lag} 个月</b>（相关系数绝对极值 $|R|_{max} = ${Math.abs(l.best.r).toFixed(3)}$），表现出前瞻性特征。`).join('<br><br>');
+  if(!leadText) leadText = "在校验期样本内，未发现具有明确前瞻引导时间的因子组合。";
+
+  const facId = document.getElementById('sig-factor').value;
+  const assetId = document.getElementById('sig-asset').value;
+  const model = document.getElementById('sig-model').value;
+  const bType = document.getElementById('sig-benchmark').value;
+  const minR = parseFloat(document.getElementById('sig-r-slider').value) / 100;
+  const teSt = document.getElementById('sig-test-start').value;
+  const teEd = document.getElementById('sig-test-end').value;
+
+  let btText = "";
+  if(facId && assetId && trSt && trEd && teSt && teEd) {
+    const facIds = model === 'single' ? [facId] : G.sel.filter(s=>s.t==='m').map(s=>s.id);
+    const astItem = G.sel.find(s => s.id === assetId);
+
+    const res = executeSimulation(facIds, assetId, trSt, trEd, teSt, teEd, bType, minR);
+
+    if(res && !res.error) {
+      let maxDDLog = res.tradeLogs.find(l => l.runningMaxLoss === res.maxLoss);
+      let ddStr = maxDDLog ? `最大亏损出现在 ${maxDDLog.date} 附近` : '';
+
+      btText = `系统使用当前配置参数执行回测。模型：<b>${model==='single'?'单因子轮动模型':'多因子复合模型'}</b> 针对资产 ${fmtS(astItem)}。<br>
+      为防止引入未来数据，模型在校验期 (Train, ${trSt} 至 ${trEd}) 计算均值 $\\mu$、标准差 $\\sigma$ 及最优前瞻时间 $Lag$；在验证期 (Test, ${teSt} 至 ${teEd}) 执行样本外滚动测试。<br><br>
+      <b>仓位控制逻辑：</b><br>
+      在宏观经济环境向好时买入或满仓；当宏观得分跌破均值，或趋势动量显著转弱时，系统根据风险暴露的严重程度，按比例降低仓位（减至 50%、30% 或 0%）以锁定利润并控制最大亏本率。<br><br>
+      <b>模拟交易验证结果：</b><br>
+      在验证期内，假设以 10,000 元初始资金入场，基准资产（${bType==='full'?'100%满仓持有':'50%半仓持有'}）的累计收益率为 <span class="txt-${res.bTotalRet>=0?'red':'green'}">${(res.bTotalRet*100).toFixed(2)}%</span>；<br>
+      而跟随本系统量化择时策略，期末总资金变为了 <span class="txt-${res.totalRet>=0?'red':'green'}">¥${(res.totalRet*10000 + 10000).toLocaleString('zh-CN')}</span>（累计收益 ${(res.totalRet*100).toFixed(2)}%），相较被动持有基准创造了 <b>${(res.alpha*100).toFixed(2)}% 的超额收益</b>。<br><br>
+      <b>风险控制表现：</b><br>
+      在极端风险防范方面，如果采用基准策略，期间曾面临过高达 <b>${(res.maxBLoss*100).toFixed(2)}%</b> 的历史最大亏本率；而我们的量化策略通过及时空仓或减仓，将最大亏本率控制在了 <b>${(res.maxLoss*100).toFixed(2)}%</b> 的安全水平内（${ddStr}）。年化夏普比率为 <b>${res.sharpe.toFixed(2)}</b>，全周期共执行了 <b>${res.trades} 次</b>调仓操作。<br><br>
+      <b>结论：</b>客观数据印证了该策略展现出的优异风控与择时效能，说明所选宏观指标能够有效预判标的资产的周期性回撤，并具备显著的实战参考价值。`;
+    } else {
+      btText = `当前时间窗口切分下，未能提取到符合置信度阈值的有效先导因子，无法完成脱盲外推，请重新滑动参数。`;
+    }
+  } else {
+    btText = `请首先前往【双区间量化回测】面板执行测试，本报告将基于测算结果给出进一步的量化评估结论。`;
+  }
+
+  const dateStr = `${G.startDt} 至 ${G.endDt}`;
+
+  wrap.innerHTML = `
+    <div style="text-align:center;margin-bottom:40px">
+      <h2 style="font-size:1.8rem;color:var(--text0);margin-bottom:10px">宏观经济指标与资产走势分析报告</h2>
+      <div style="color:var(--text2);font-family:var(--mono)">数据涵盖范围: ${dateStr}</div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">1. 数据概览</div>
+      <p class="report-p">本次分析包含了 ${ms.length} 个宏观经济指标（包括：${ms.map(m=>fmtM(m)).join('、')}），以及 ${ss.length} 个资产标的（${ss.map(s=>fmtS(s)).join('、')}）。</p>
+      <p class="report-p">为了能够把不同类型的数据放在一起公平比较，系统对所有宏观数据进行了标准化处理（Z-Score）。简单来说，就是把不同单位的数据（比如百分比、绝对金额）换算成统一的无量纲得分，方便我们直观地对比它们的变化趋势。</p>
+      <div style="text-align:center;margin:20px 0">
+        <p style="font-size:0.9rem;color:var(--text2);margin-bottom:8px">数据标准化处理模型公式</p>
+        $$ Z_t = \\frac{X_t - \\mu}{\\sigma} $$
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">2. 指标联动性分析</div>
+      <p class="report-p">我们计算了宏观数据和资产价格之间的相关性（Pearson相关系数，越接近1或-1说明联动性越强），结果如下：</p>
+      <div class="report-highlight" style="line-height:2">
+        ${allCorrText}
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">3. 指标领先性（前瞻预测）分析</div>
+      <p class="report-p">一个好的指标不仅要相关，还要能提前发出信号。我们测试了各个指标在不同的时差（Lag）下与资产价格的相关性，以测定其作为先行指标的有效性。在校验区内计算出的结果显示：</p>
+      <div class="report-highlight" style="line-height:1.8">
+        ${leadText}
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">4. 模拟交易策略测试结果</div>
+      <p class="report-p">基于上述发掘的数据规律，我们制定了量化风控测试。在市场进入顺风期时保持较高敞口，在指标报警时控制敞口以规避回撤。</p>
+      <div class="report-highlight">
+        ${btText}
+      </div>
+    </div>
+  `;
+  safeMathJax();
+}
+
+/* ═══════════════════════════════════════════
+   MAIN CYCLE INIT
+═══════════════════════════════════════════ */
+function refreshAll(){
+  const em = document.getElementById('empty-hint');
+  const dts = document.querySelectorAll('.panel');
+  if(G.sel.length < 2) {
+    em.style.display='block';
+    dts.forEach(p => { if(p.id !== 'empty-hint') p.style.display='none'; });
+    return;
+  } else {
+    em.style.display='none';
+    dts.forEach(p => {
+      if(p.id === 'panel-' + G.tab) { p.style.display='block'; p.classList.add('on'); }
+      else { p.style.display='none'; p.classList.remove('on'); }
+    });
+  }
+
+  G.startDt = document.getElementById('global-start').value;
+  G.endDt = document.getElementById('global-end').value;
+
+  if(G.tab === 'dashboard') renderDashboard();
+  else if(G.tab === 'rolling') renderRolling();
+  else if(G.tab === 'leadlag') renderLeadLag();
+  else if(G.tab === 'signal') renderSignal();
+  else if(G.tab === 'report') renderReport();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  IDX = buildIDX();
+  getRawDates();
+  buildSB();
+  document.getElementById('global-start').addEventListener('change', refreshAll);
+  document.getElementById('global-end').addEventListener('change', refreshAll);
+  document.getElementById('lag-rng').addEventListener('input', refreshAll);
+});
+</script>
+</body>
+</html>
