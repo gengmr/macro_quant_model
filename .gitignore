@@ -26,6 +26,23 @@ desktop.ini
 $RECYCLE.BIN/
 
 # =========================
+# IDE / 编辑器自动生成的文件
+# =========================
+
+# JetBrains 系列 (PyCharm, IntelliJ, WebStorm 等)
+.idea/
+*.iml
+*.iws
+
+# VS Code
+.vscode/
+
+# Vim / 其他常规临时文件
+*.swp
+*.swo
+*~
+
+# =========================
 # 项目特定文件/文件夹
 # =========================
 
